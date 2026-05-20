@@ -574,29 +574,29 @@ Remove boilerplate `Greeter` when implementing.
 
 ### Phase 0 — Repo hygiene
 
-- [ ] Remove `Greeter` sample; align `foundry.toml` with pacto-gov (`solc 0.8.30`, `lintspec`, CI).
-- [ ] Add `pacto-gov` git submodule at `lib/pacto-gov` (read-only interfaces).
-- [ ] Add `script/Constants.sol` for public chain + deployment addresses; `.env.example` for **private keys/RPC only**
+- ✅ Remove `Greeter` sample; align `foundry.toml` with pacto-gov (`solc 0.8.30`, `lintspec`, CI).
+- ✅ Add `pacto-gov` dependency via `pnpm` + `remappings.txt` (read-only interfaces; no `lib/` submodule).
+- ✅ Add `script/Constants.sol` for public chain + deployment addresses; `.env.example` for **private keys/RPC only**
 
 ### Phase 1 — Factory + vault + Ext clones
 
-- [ ] `SquadSponsorFactory`: `createSquad`, first-depositor → `addressOwner`, vault + Ext clones.
-- [ ] `SquadSponsorVault` implementation: pro-rata deposit/withdraw, `spendGas`, `linkTopHat`.
-- [ ] `SquadSponsorExt` clone: `setPermittedAddress`, `transferAddressOwner`, `postInitialize`.
+- ✅ `SquadSponsorFactory`: `createSquad`, first-depositor → `addressOwner`, vault + Ext clones.
+- ✅ `SquadSponsorVault` implementation: pro-rata deposit/withdraw, `spendGas`, `linkTopHat`.
+- ✅ `SquadSponsorExt` clone: `setPermittedAddress`, `transferAddressOwner`, `postInitialize`.
 
 ### Phase 2 — SquadSponsor hat clone + ERC-4337 paymaster
 
-- [ ] `SquadSponsor` hat clone: PactoGov (crew + captain) + custom eligible hat list.
-- [ ] `PactoSponsorPaymaster`: eligibility routing (Ext vs Base); **`paymasterAndData`** decode (§10.1); Safe 4337 signer → eligibility (§5.2).
-- [ ] Unit + integration tests: vault isolation; address → `postInitialize` → hats; mock Safe UserOp.
+- ✅ `SquadSponsor` hat clone: PactoGov (crew + captain) + custom eligible hat list.
+- ✅ `PactoSponsorPaymaster`: eligibility routing (Ext vs Base); **`paymasterAndData`** decode (§10.1); EOA member binding (Safe 4337 signer path deferred).
+- ✅ Unit tests: vault isolation; address → `postInitialize` → hats; paymaster validation (28 tests passing).
 - [ ] **Integration / e2e:** fork **mainnet** via `IntegrationBase._forkMainnet()` (D19).
 
 ### Phase 3 — Deploy Sepolia (frontend live testing)
 
 First **deployed** environment for app + Alchemy smoke — **not** the integration test fork target.
 
-- [ ] `script/Deploy.s.sol` → `deployments/11155111/sponsor.json`
-- [ ] `script/WirePaymaster.s.sol` → EntryPoint stake/deposit
+- [ ] `script/Deploy.sol` → `deployments/11155111/sponsor.json`
+- [ ] EntryPoint stake/deposit for paymaster
 - [ ] Manual Alchemy Gas Manager policy
 - [ ] **Frontend live test:** EOA UserOp + paymaster on Sepolia bundler
 
@@ -614,7 +614,7 @@ First **deployed** environment for app + Alchemy smoke — **not** the integrati
 
 ### 10.1 Implementation appendix (for executing agent)
 
-**Confidence:** Architecture is sufficient to start **Phases 0–2** in this repo. Phase 3 smoke test needs env secrets. Phase 5 needs pacto-gov PR.
+**Confidence:** Phases **0–2** core contracts and unit tests are complete in this repo. Phase 3 smoke test needs env secrets + deploy. Phase 5 needs pacto-gov PR.
 
 #### Dependencies (Phase 0)
 

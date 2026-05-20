@@ -36,6 +36,12 @@
     "test/unit/**/*.tree": "pnpm lint:bulloak",
     "package.json": "sort-package-json"
   },
+  "dependencies": {
+    "@account-abstraction/contracts": "0.7.0",
+    "@openzeppelin/contracts": "5.1.0",
+    "hats-core": "github:Hats-Protocol/hats-protocol",
+    "pacto-gov": "github:covenant-gov/pacto-gov"
+  },
   "devDependencies": {
     "@commitlint/cli": "19.3.0",
     "@commitlint/config-conventional": "19.2.2",
@@ -45,5 +51,10 @@
     "solhint-community": "4.0.1",
     "solhint-config-wonderland": "0.0.1",
     "sort-package-json": "3.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "solidity-foundry-boilerplate"
+    ]
   }
 }

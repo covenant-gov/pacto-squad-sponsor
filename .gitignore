@@ -8,6 +8,8 @@ node_modules
 cache
 out-via-ir
 lcov.info
+lib
+foundry.lock
 
 # Config files
 .env
