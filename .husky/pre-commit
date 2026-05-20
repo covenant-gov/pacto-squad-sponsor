@@ -1,4 +1,5 @@
 # 1. Build the contracts
 # 2. Stage build output
 # 3. Lint and stage style improvements
+export PATH="${HOME}/.foundry/bin:${PATH}"
 pnpm build && npx lint-staged

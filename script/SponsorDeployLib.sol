@@ -71,9 +71,9 @@ library SponsorDeployLib {
     address entryPoint,
     address hats
   ) internal returns (SquadSponsorFactory factory, PactoSponsorPaymaster paymaster) {
-    paymaster = new PactoSponsorPaymaster{
-      salt: addrs.saltPaymaster
-    }(IEntryPoint(entryPoint), ISquadSponsorFactory(addrs.factory));
+    paymaster = new PactoSponsorPaymaster{salt: addrs.saltPaymaster}(
+      IEntryPoint(entryPoint), ISquadSponsorFactory(addrs.factory)
+    );
     if (address(paymaster) != addrs.paymaster) revert SponsorDeployLib_Unresolved();
 
     factory = new SquadSponsorFactory{salt: addrs.saltFactory}(addrs.paymaster, hats);
