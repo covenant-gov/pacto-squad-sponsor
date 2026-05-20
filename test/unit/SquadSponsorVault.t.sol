@@ -6,6 +6,7 @@ import {SquadSponsorVault} from 'contracts/SquadSponsorVault.sol';
 import {ISquadSponsorVault} from 'interfaces/ISquadSponsorVault.sol';
 
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
+import {RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
 
 /**
  * @title UnitSquadSponsorVault
@@ -125,5 +126,87 @@ contract UnitSquadSponsorVault is UnitSquadSponsorBase {
     _vault.spendGas(_spent);
 
     assertLe(_vault.withdrawable(sponsor), address(_vault).balance);
+  }
+
+  function test_Unit_Vault_DepositForCreditsSponsor() external {
+    vm.deal(address(this), 2 ether);
+    _vault.depositFor{value: 2 ether}(_alice);
+
+    assertEq(_vault.sponsorShares(_alice), 2 ether);
+  }
+
+  function test_Unit_Vault_DepositForZeroAddressReverts() external {
+    vm.deal(address(this), 1 ether);
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_ZeroAddress.selector);
+    _vault.depositFor{value: 1 ether}(address(0));
+  }
+
+  function test_Unit_Vault_DepositZeroAmountReverts() external {
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_ZeroAmount.selector);
+    _vault.deposit();
+  }
+
+  function test_Unit_Vault_WithdrawNoSharesReverts() external {
+    vm.prank(_alice);
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_NoShares.selector);
+    _vault.withdraw();
+  }
+
+  function test_Unit_Vault_SpendGasInsufficientBalanceReverts() external {
+    vm.prank(address(_paymaster));
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_InsufficientBalance.selector);
+    _vault.spendGas(11 ether);
+  }
+
+  function test_Unit_Vault_LinkTopHatAlreadyLinkedReverts() external {
+    vm.startPrank(_ext);
+    _vault.linkTopHat(0x100);
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_TopHatAlreadyLinked.selector);
+    _vault.linkTopHat(0x101);
+    vm.stopPrank();
+  }
+
+  function test_Unit_Vault_WithdrawableZeroForNoShares() external view {
+    assertEq(_vault.withdrawable(_alice), 0);
+  }
+
+  function test_Unit_Vault_FallbackCreditsShares() external {
+    vm.deal(_alice, 2 ether);
+    vm.prank(_alice);
+    (bool _ok,) = address(_vault).call{value: 2 ether}(hex'01');
+    assertTrue(_ok);
+
+    assertEq(_vault.sponsorShares(_alice), 2 ether);
+  }
+
+  function test_Unit_Vault_WithdrawableZeroEmptyPool() external {
+    bytes32 _emptyId = keccak256('empty-pool');
+    (address _emptyVault,) = _factory.createSquad(_emptyId);
+
+    assertEq(SquadSponsorVault(payable(_emptyVault)).withdrawable(_alice), 0);
+  }
+
+  function test_Unit_Vault_DepositAfterFullDrainMintsOneToOne() external {
+    vm.deal(_alice, 5 ether);
+    vm.prank(_alice);
+    _vault.deposit{value: 5 ether}();
+
+    vm.prank(address(_paymaster));
+    _vault.spendGas(15 ether);
+
+    vm.deal(address(this), 2 ether);
+    _vault.depositFor{value: 2 ether}(_bob);
+
+    assertEq(_vault.sponsorShares(_bob), 2 ether);
+  }
+
+  function test_Unit_Vault_WithdrawTransferFailedReverts() external {
+    RejectEthReceiver _receiver = new RejectEthReceiver();
+    vm.deal(address(this), 1 ether);
+    _vault.depositFor{value: 1 ether}(address(_receiver));
+
+    vm.prank(address(_receiver));
+    vm.expectRevert(ISquadSponsorVault.SquadSponsorVault_TransferFailed.selector);
+    _vault.withdraw();
   }
 }

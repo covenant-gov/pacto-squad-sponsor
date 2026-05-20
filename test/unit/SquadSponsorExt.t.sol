@@ -3,7 +3,11 @@ pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
+import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
+
 import {ISquadSponsorExt} from 'interfaces/ISquadSponsorExt.sol';
+
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
 
@@ -102,5 +106,30 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
     vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_HatsAlreadyWired.selector);
     vm.prank(address(_factory));
     _ext.postInitialize(0x305, makeAddr('base2'));
+  }
+
+  function test_Unit_Ext_SetPermittedAddressZeroMemberReverts() external {
+    vm.prank(_owner);
+    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
+    _ext.setPermittedAddress(address(0), true);
+  }
+
+  function test_Unit_Ext_PostInitializeZeroBaseReverts() external {
+    vm.prank(address(_factory));
+    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroBase.selector);
+    _ext.postInitialize(0x306, address(0));
+  }
+
+  function test_Unit_Ext_TransferAddressOwnerZeroReverts() external {
+    vm.prank(_owner);
+    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
+    _ext.transferAddressOwner(address(0));
+  }
+
+  function test_Unit_Ext_InitializeZeroVaultReverts() external {
+    address _clone = Clones.clone(_factory.extImplementation());
+
+    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
+    SquadSponsorExt(_clone).initialize(_squadId, address(0), address(_factory), _owner);
   }
 }

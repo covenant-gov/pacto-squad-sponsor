@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
+import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 import {SquadSponsorVault} from 'contracts/SquadSponsorVault.sol';
 
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
@@ -47,7 +48,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
   }
 
   function test_Unit_Factory_DuplicateSquadReverts() external {
-    _createSquad(_squadId, 0);
+    _createSquad(_squadId);
 
     vm.expectRevert(
       abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_SquadAlreadyExists.selector, _squadId)
@@ -70,5 +71,39 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     assertEq(_record.base, _base);
     assertEq(_record.topHatId, _topHatId);
     assertEq(SquadSponsorVault(payable(_vault)).topHatId(), _topHatId);
+  }
+
+  function test_Unit_Factory_CloneAndWireUnknownSquadReverts() external {
+    uint256[] memory _customHats = new uint256[](0);
+
+    vm.expectRevert(
+      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, bytes32('missing'))
+    );
+    _factory.cloneAndWireSquadSponsor(bytes32('missing'), 0x100, address(0), _customHats);
+  }
+
+  function test_Unit_Factory_RegisterHatsWiringUnknownSquadReverts() external {
+    vm.expectRevert(
+      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, bytes32('missing'))
+    );
+    _factory.registerHatsWiring(bytes32('missing'), 0x100, makeAddr('base'));
+  }
+
+  function test_Unit_Factory_RegisterHatsWiringNotExtReverts() external {
+    vm.prank(_creator);
+    _factory.createSquad(_squadId);
+
+    vm.expectRevert(ISquadSponsorFactory.SquadSponsorFactory_NotExt.selector);
+    _factory.registerHatsWiring(_squadId, 0x100, makeAddr('base'));
+  }
+
+  function test_Unit_Factory_ConstructorZeroPaymasterReverts() external {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_ZeroAddress.selector, 'paymaster'));
+    new SquadSponsorFactory(address(0), _HATS);
+  }
+
+  function test_Unit_Factory_ConstructorZeroHatsReverts() external {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_ZeroAddress.selector, 'hats'));
+    new SquadSponsorFactory(address(_paymaster), address(0));
   }
 }

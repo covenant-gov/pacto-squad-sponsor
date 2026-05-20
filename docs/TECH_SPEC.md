@@ -591,30 +591,21 @@ Remove boilerplate `Greeter` when implementing.
 - ✅ Unit tests: vault isolation; address → `postInitialize` → hats; paymaster validation (28 tests passing).
 - [ ] **Integration / e2e:** fork **mainnet** via `IntegrationBase._forkMainnet()` (D19).
 
-### Phase 3 — Deploy Sepolia (frontend live testing)
-
-First **deployed** environment for app + Alchemy smoke — **not** the integration test fork target.
-
-- [ ] `script/Deploy.sol` → `deployments/11155111/sponsor.json`
-- [ ] EntryPoint stake/deposit for paymaster
-- [ ] Manual Alchemy Gas Manager policy
-- [ ] **Frontend live test:** EOA UserOp + paymaster on Sepolia bundler
-
-### Phase 4 — Mainnet + Arbitrum
+### Phase 3 — Mainnet + Arbitrum
 
 - [ ] Deploy Factory + Paymaster on `1` and `42161`; commit `deployments/<chainId>/sponsor.json`
 - [ ] Pin EntryPoint + Hats + Safe 4337 module addresses per chain (§10.1)
 - [ ] Audit checklist before mainnet
 
-### Phase 5 — pacto-gov factory (parallel / after Sepolia frontend smoke)
+### Phase 4 — pacto-gov factory (parallel / after mainnet deploy)
 
-- [ ] Items in [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) — not blocking Phases 0–3
+- [ ] Items in [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) — not blocking Phases 0–2 in this repo
 
 ---
 
 ### 10.1 Implementation appendix (for executing agent)
 
-**Confidence:** Phases **0–2** core contracts and unit tests are complete in this repo. Phase 3 smoke test needs env secrets + deploy. Phase 5 needs pacto-gov PR.
+**Confidence:** Phases **0–2** core contracts and unit tests are complete in this repo. Phase 4 needs pacto-gov PR. Deploy scripts exist but are out of scope until you choose to broadcast.
 
 #### Dependencies (Phase 0)
 
@@ -666,7 +657,7 @@ Canonical source: **`script/Constants.sol`** (`Constants.getConfig(chainId)`). D
 | `*_DEPLOYER_NAME` (keystore labels) | `squadSponsorFactory`, `paymaster` after deploy |
 | | `mainnetForkBlock` for integration tests |
 
-After Phase 3 deploy, update **`Constants.sol`** (and optionally `deployments/<chainId>/sponsor.json` for app consumption).
+After deploy, update **`Constants.sol`** (and optionally `deployments/<chainId>/sponsor.json` for app consumption).
 
 #### `.env.example` (Phase 0)
 
@@ -679,12 +670,11 @@ Private keys and RPC URLs only — see repo `.env.example`.
 | **`SquadAdminExt.sol`** from pacto-gov (submodule) | Copy `postInitialize` auth modifiers exactly |
 | **`INavePirataRegistry.sol`** | `SquadSponsor.isEligible` PactoGov path |
 | Published pacto-gov **mainnet** `deployments/` (or pinned mainnet addresses) | Integration fork tests (D19) |
-| Alchemy dashboard + bundler URL | Sepolia **frontend** live smoke (Phase 3) |
 
 #### Explicitly deferred (do not implement in first PR)
 
 - Crew hat mint sponsorship
-- pacto-gov factory `postInitialize` call (Phase 5)
+- pacto-gov factory `postInitialize` call (Phase 4)
 - On-chain low-balance alerts
 
 ---
@@ -739,9 +729,8 @@ Before marking v1 complete:
 
 1. `forge test` green in pacto-squad-sponsor
 2. `lintspec` / `forge fmt` clean
-3. `deployments/11155111/sponsor.json` committed for Sepolia (frontend live testing)
-4. README updated: collective model, deposit/withdraw, Alchemy setup, **permissions vs gas**, **infra deploy gas sponsored when permitted**
-5. Explicit note: factory co-deploy is **Phase 6** optional PR in pacto-gov — sponsor repo stands alone
+3. README updated: collective model, deposit/withdraw, **permissions vs gas**
+4. Explicit note: factory co-deploy is optional PR in pacto-gov — sponsor repo stands alone
 
 ---
 
