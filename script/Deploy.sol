@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Constants} from 'script/Constants.sol';
 import {Script} from 'forge-std/Script.sol';
+import {Constants} from 'script/Constants.sol';
 
 /// @notice Chain-level deploy: SquadSponsorFactory + PactoSponsorPaymaster (Phase 3).
 contract Deploy is Script {

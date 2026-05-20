@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Constants} from 'script/Constants.sol';
 import {Test} from 'forge-std/Test.sol';
+import {Constants} from 'script/Constants.sol';
 
 /// @dev Integration / e2e tests fork **mainnet** (production Hats, Safe, registry addresses).
 /// Sepolia is for deployed-contract + frontend live testing only — not the integration fork target.

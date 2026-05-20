@@ -8,7 +8,7 @@
     "url": "git+https://github.com/covenant-gov/pacto-squad-sponsor.git"
   },
   "license": "MIT",
-  "author": "covenant-gov",
+  "author": "Pacto",
   "scripts": {
     "build": "forge build",
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
@@ -19,7 +19,7 @@
     "lint:bulloak": "find test/unit -name '*.tree' | xargs bulloak check",
     "lint:check": "forge fmt --check && pnpm lint:sol",
     "lint:fix": "forge fmt && pnpm lint:sol --fix && sort-package-json",
-    "lint:natspec": "lintspec",
+    "lint:natspec": "bash scripts/lintspec.sh",
     "lint:sol": "solhint 'src/**/*.sol' 'script/**/*.sol' 'test/**/*.sol'",
     "prepare": "husky",
     "test": "forge test -vvv",
@@ -32,7 +32,7 @@
   "lint-staged": {
     "*.{js,css,md,ts,sol}": "forge fmt",
     "(src|script|test)/**/*.sol": "pnpm lint:sol --fix",
-    "src/**/*.sol": "lintspec",
+    "src/**/*.sol": "bash scripts/lintspec.sh",
     "test/unit/**/*.tree": "pnpm lint:bulloak",
     "package.json": "sort-package-json"
   },
