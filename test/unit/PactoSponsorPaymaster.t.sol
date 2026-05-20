@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
-import {SquadSponsorVault} from 'contracts/SquadSponsorVault.sol';
-
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
+import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
-import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
 import {SIG_VALIDATION_FAILED} from '@account-abstraction/core/Helpers.sol';
-import {UserOperationLib} from '@account-abstraction/core/UserOperationLib.sol';
 import {IPaymaster} from '@account-abstraction/interfaces/IPaymaster.sol';
 import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOperation.sol';
 

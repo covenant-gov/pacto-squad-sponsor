@@ -32,22 +32,6 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
   mapping(address sponsor => uint256 shares) public sponsorShares;
 
   /*///////////////////////////////////////////////////////////////
-                            MODIFIERS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice Restricts to the wired paymaster.
-  modifier onlyPaymaster() {
-    if (msg.sender != paymaster) revert SquadSponsorVault_NotPaymaster();
-    _;
-  }
-
-  /// @notice Restricts to the paired Ext clone.
-  modifier onlyExt() {
-    if (msg.sender != ext) revert SquadSponsorVault_NotExt();
-    _;
-  }
-
-  /*///////////////////////////////////////////////////////////////
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
 
@@ -112,7 +96,8 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
   }
 
   /// @inheritdoc ISquadSponsorVault
-  function spendGas(uint256 amount) external onlyPaymaster {
+  function spendGas(uint256 amount) external {
+    if (msg.sender != paymaster) revert SquadSponsorVault_NotPaymaster();
     if (amount > address(this).balance) revert SquadSponsorVault_InsufficientBalance();
 
     (bool _ok,) = paymaster.call{value: amount}('');
@@ -122,7 +107,8 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
   }
 
   /// @inheritdoc ISquadSponsorVault
-  function linkTopHat(uint256 _topHatId) external onlyExt {
+  function linkTopHat(uint256 _topHatId) external {
+    if (msg.sender != ext) revert SquadSponsorVault_NotExt();
     if (topHatId != 0) revert SquadSponsorVault_TopHatAlreadyLinked();
     topHatId = _topHatId;
     emit TopHatLinked(_topHatId);

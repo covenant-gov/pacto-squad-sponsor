@@ -22,9 +22,9 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc ISquadSponsorFactory
-  address public immutable paymaster;
+  address public immutable PAYMASTER;
   /// @inheritdoc ISquadSponsorFactory
-  address public immutable hats;
+  address public immutable HATS;
 
   /*///////////////////////////////////////////////////////////////
                             STORAGE
@@ -56,8 +56,8 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     if (paymaster_ == address(0)) revert SquadSponsorFactory_ZeroAddress('paymaster');
     if (hats_ == address(0)) revert SquadSponsorFactory_ZeroAddress('hats');
 
-    paymaster = paymaster_;
-    hats = hats_;
+    PAYMASTER = paymaster_;
+    HATS = hats_;
 
     vaultImplementation = address(new SquadSponsorVault());
     extImplementation = address(new SquadSponsorExt(IHats(hats_)));
@@ -75,7 +75,7 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     vault = Clones.clone(vaultImplementation);
     ext = Clones.clone(extImplementation);
 
-    SquadSponsorVault(payable(vault)).initialize(squadId, ext, paymaster, address(this));
+    SquadSponsorVault(payable(vault)).initialize(squadId, ext, PAYMASTER, address(this));
     SquadSponsorExt(ext).initialize(squadId, vault, address(this), msg.sender);
 
     _squads[squadId] = SquadRecord({vault: vault, ext: ext, base: address(0), topHatId: 0});
@@ -116,6 +116,10 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
 
     emit HatsWiringRegistered(squadId, topHatId, base);
   }
+
+  /*///////////////////////////////////////////////////////////////
+                            VIEWS
+  //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc ISquadSponsorFactory
   function squads(bytes32 squadId) external view returns (SquadRecord memory record) {

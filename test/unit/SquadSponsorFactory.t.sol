@@ -16,6 +16,8 @@ import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
  */
 contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
   address internal _creator = makeAddr('creator');
+  // forge-lint: disable-next-line(unsafe-typecast)
+  bytes32 internal constant _MISSING_SQUAD_ID = bytes32('missing');
 
   function test_Unit_Factory_CreateSquadDeploysClones() external {
     vm.prank(_creator);
@@ -77,16 +79,16 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     uint256[] memory _customHats = new uint256[](0);
 
     vm.expectRevert(
-      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, bytes32('missing'))
+      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, _MISSING_SQUAD_ID)
     );
-    _factory.cloneAndWireSquadSponsor(bytes32('missing'), 0x100, address(0), _customHats);
+    _factory.cloneAndWireSquadSponsor(_MISSING_SQUAD_ID, 0x100, address(0), _customHats);
   }
 
   function test_Unit_Factory_RegisterHatsWiringUnknownSquadReverts() external {
     vm.expectRevert(
-      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, bytes32('missing'))
+      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, _MISSING_SQUAD_ID)
     );
-    _factory.registerHatsWiring(bytes32('missing'), 0x100, makeAddr('base'));
+    _factory.registerHatsWiring(_MISSING_SQUAD_ID, 0x100, makeAddr('base'));
   }
 
   function test_Unit_Factory_RegisterHatsWiringNotExtReverts() external {

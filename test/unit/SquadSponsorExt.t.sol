@@ -2,9 +2,6 @@
 pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
-
-import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
-
 import {ISquadSponsorExt} from 'interfaces/ISquadSponsorExt.sol';
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';

@@ -48,7 +48,7 @@ contract SquadSponsorExt is ISquadSponsorExt, Initializable {
 
   /// @notice Restricts to the early-bird address owner.
   modifier onlyAddressOwner() {
-    if (msg.sender != addressOwner) revert SquadSponsorExt_NotAddressOwner();
+    _onlyAddressOwner();
     _;
   }
 
@@ -136,5 +136,12 @@ contract SquadSponsorExt is ISquadSponsorExt, Initializable {
     if (msg.sender == addressOwner) return;
     if (_HATS.isAdminOfHat(msg.sender, topHatId)) return;
     revert SquadSponsorExt_NotAllowed();
+  }
+
+  /**
+   * @notice Reverts unless caller is the address owner.
+   */
+  function _onlyAddressOwner() internal view {
+    if (msg.sender != addressOwner) revert SquadSponsorExt_NotAddressOwner();
   }
 }

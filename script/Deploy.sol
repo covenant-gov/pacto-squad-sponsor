@@ -27,7 +27,7 @@ contract Deploy is Script {
     address deployer,
     SponsorDeployLib.Addresses memory addrs,
     Constants.ChainConfig memory config
-  ) internal view {
+  ) internal pure {
     bytes32 paymasterHash = SponsorDeployLib.paymasterInitCodeHash(config.entryPoint, addrs.factory);
     bytes32 factoryHash = SponsorDeployLib.factoryInitCodeHash(addrs.paymaster, config.hats);
 

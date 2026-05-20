@@ -111,13 +111,13 @@ interface ISquadSponsorFactory {
    * @notice Wired paymaster for all squad vault clones.
    * @return paymaster Paymaster address.
    */
-  function paymaster() external view returns (address paymaster);
+  function PAYMASTER() external view returns (address paymaster);
 
   /**
    * @notice Hats Protocol singleton used by Ext clones.
    * @return hats Hats address.
    */
-  function hats() external view returns (address hats);
+  function HATS() external view returns (address hats);
 
   /**
    * @notice Vault implementation used for EIP-1167 clones.
