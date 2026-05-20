@@ -1,24 +1,26 @@
 {
-  "name": "solidity-foundry-boilerplate",
-  "version": "1.0.0",
-  "description": "Production ready Solidity boilerplate with Foundry",
-  "homepage": "https://github.com/defi-wonderland/solidity-foundry-boilerplate#readme",
+  "name": "pacto-squad-sponsor",
+  "version": "0.1.0",
+  "description": "Collective squad-scoped gas sponsorship for Pacto",
+  "homepage": "https://github.com/covenant-gov/pacto-squad-sponsor#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/defi-wonderland/solidity-foundry-boilerplate.git"
+    "url": "git+https://github.com/covenant-gov/pacto-squad-sponsor.git"
   },
   "license": "MIT",
-  "author": "Wonderland",
+  "author": "Pacto",
   "scripts": {
     "build": "forge build",
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
-    "coverage": "forge coverage --report summary --report lcov --match-path 'test/unit/*'",
+    "commit": "pnpm lint:check && pnpm lint:natspec && pnpm test:unit && pnpm test:integration",
+    "coverage": "forge coverage --ir-minimum --report summary --report lcov --match-path 'test/unit/*' --no-match-coverage 'script/|test/integration/'",
+    "deploy:arbitrum": "bash -c 'source .env && forge script Deploy --rpc-url arbitrum --account $ARBITRUM_DEPLOYER_NAME --broadcast --verify --chain arbitrum -vvvvv'",
     "deploy:mainnet": "bash -c 'source .env && forge script Deploy --rpc-url mainnet --account $MAINNET_DEPLOYER_NAME --broadcast --verify --chain mainnet -vvvvv'",
     "deploy:sepolia": "bash -c 'source .env && forge script Deploy --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --verify --chain sepolia -vvvvv'",
     "lint:bulloak": "find test/unit -name '*.tree' | xargs bulloak check",
     "lint:check": "forge fmt --check && pnpm lint:sol",
     "lint:fix": "forge fmt && pnpm lint:sol --fix && sort-package-json",
-    "lint:natspec": "lintspec",
+    "lint:natspec": "bash scripts/lintspec.sh",
     "lint:sol": "solhint 'src/**/*.sol' 'script/**/*.sol' 'test/**/*.sol'",
     "prepare": "husky",
     "test": "forge test -vvv",
@@ -31,9 +33,15 @@
   "lint-staged": {
     "*.{js,css,md,ts,sol}": "forge fmt",
     "(src|script|test)/**/*.sol": "pnpm lint:sol --fix",
-    "src/**/*.sol": "lintspec",
+    "src/**/*.sol": "bash scripts/lintspec.sh",
     "test/unit/**/*.tree": "pnpm lint:bulloak",
     "package.json": "sort-package-json"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "0.7.0",
+    "@openzeppelin/contracts": "5.1.0",
+    "hats-core": "github:Hats-Protocol/hats-protocol",
+    "pacto-gov": "github:covenant-gov/pacto-gov"
   },
   "devDependencies": {
     "@commitlint/cli": "19.3.0",
@@ -44,5 +52,10 @@
     "solhint-community": "4.0.1",
     "solhint-config-wonderland": "0.0.1",
     "sort-package-json": "3.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "solidity-foundry-boilerplate"
+    ]
   }
 }

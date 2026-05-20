@@ -1,4 +1,11 @@
-forge-std/=node_modules/forge-std/src
+forge-std/=node_modules/forge-std/src/
 
-contracts/=src/contracts
-interfaces/=src/interfaces
+contracts/=src/contracts/
+interfaces/=src/interfaces/
+script/=script/
+
+hats-core/=node_modules/hats-core/src/
+
+@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
+@account-abstraction/=node_modules/@account-abstraction/contracts/
+@pacto-gov/=node_modules/pacto-gov/src/
