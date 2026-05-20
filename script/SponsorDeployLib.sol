@@ -8,7 +8,7 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
-/// @notice CREATE2 helpers for factory ↔ paymaster circular constructor deps. forge
+/// @notice CREATE2 helpers for factory ↔ paymaster circular constructor deps.
 library SponsorDeployLib {
   error SponsorDeployLib_Unresolved();
 
