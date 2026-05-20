@@ -76,7 +76,6 @@ library SponsorDeployLib {
     }(IEntryPoint(entryPoint), ISquadSponsorFactory(addrs.factory));
     if (address(paymaster) != addrs.paymaster) revert SponsorDeployLib_Unresolved();
 
-    // forge-lint: disable-next-line(unsafe-typecast)
     factory = new SquadSponsorFactory{salt: addrs.saltFactory}(addrs.paymaster, hats);
     if (address(factory) != addrs.factory) revert SponsorDeployLib_Unresolved();
   }
