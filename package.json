@@ -1,18 +1,19 @@
 {
-  "name": "solidity-foundry-boilerplate",
-  "version": "1.0.0",
-  "description": "Production ready Solidity boilerplate with Foundry",
-  "homepage": "https://github.com/defi-wonderland/solidity-foundry-boilerplate#readme",
+  "name": "pacto-squad-sponsor",
+  "version": "0.1.0",
+  "description": "Collective squad-scoped gas sponsorship for Pacto",
+  "homepage": "https://github.com/covenant-gov/pacto-squad-sponsor#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/defi-wonderland/solidity-foundry-boilerplate.git"
+    "url": "git+https://github.com/covenant-gov/pacto-squad-sponsor.git"
   },
   "license": "MIT",
-  "author": "Wonderland",
+  "author": "covenant-gov",
   "scripts": {
     "build": "forge build",
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
     "coverage": "forge coverage --report summary --report lcov --match-path 'test/unit/*'",
+    "deploy:arbitrum": "bash -c 'source .env && forge script Deploy --rpc-url arbitrum --account $ARBITRUM_DEPLOYER_NAME --broadcast --verify --chain arbitrum -vvvvv'",
     "deploy:mainnet": "bash -c 'source .env && forge script Deploy --rpc-url mainnet --account $MAINNET_DEPLOYER_NAME --broadcast --verify --chain mainnet -vvvvv'",
     "deploy:sepolia": "bash -c 'source .env && forge script Deploy --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --verify --chain sepolia -vvvvv'",
     "lint:bulloak": "find test/unit -name '*.tree' | xargs bulloak check",
