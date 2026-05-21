@@ -1,14 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISquadSponsorEligibility} from 'interfaces/ISquadSponsorEligibility.sol';
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 
 /**
  * @title ISquadSponsor
  * @author Pacto
- * @notice Per-squad hat-based gas eligibility (PactoGov registry path or custom hat list).
+ * @notice Per-squad sponsor clone with hat-based gas eligibility (PactoGov registry path or custom hat list).
  */
-interface ISquadSponsor is ISquadSponsorEligibility {
+interface ISquadSponsor is ISquadSponsorBase {
+  /*///////////////////////////////////////////////////////////////
+                            EVENTS
+  //////////////////////////////////////////////////////////////*/
+
+  /**
+   * @notice Emitted when hat sponsorship is wired on this clone.
+   * @param squadId Squad identifier for this clone.
+   * @param topHatId Linked Hats top hat id.
+   */
+  event HatsSponsorshipWired(bytes32 indexed squadId, uint256 topHatId);
+
+  /*///////////////////////////////////////////////////////////////
+                            ERRORS
+  //////////////////////////////////////////////////////////////*/
+
+  /// @notice Hat sponsorship already wired for this squad.
+  error SquadSponsor_HatsAlreadyWired();
+  /// @notice Caller is not authorized to wire hat sponsorship.
+  error SquadSponsor_NotAllowed();
+
   /*///////////////////////////////////////////////////////////////
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
@@ -16,26 +36,36 @@ interface ISquadSponsor is ISquadSponsorEligibility {
   /**
    * @notice One-shot initializer for an EIP-1167 hat clone.
    * @param squadId Squad identifier bound to this clone.
+   * @param paymaster Chain paymaster authorized to call `spendGas`.
+   * @param factory SquadSponsorFactory address.
    * @param topHatId Linked Hats tree top hat id.
    * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
    * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
    */
   function initialize(
     bytes32 squadId,
+    address paymaster,
+    address factory,
     uint256 topHatId,
     address registry,
     uint256[] calldata customEligibleHats
   ) external;
 
   /*///////////////////////////////////////////////////////////////
-                            VIEWS
+                            LOGIC
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Squad identifier for this clone.
-   * @return squadId Bound squad id.
+   * @notice Wire hat-based eligibility on this clone (Ext migration path).
+   * @param topHatId Squad Hats tree top hat id.
+   * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
+   * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
    */
-  function squadId() external view returns (bytes32 squadId);
+  function postInitialize(uint256 topHatId, address registry, uint256[] calldata customEligibleHats) external;
+
+  /*///////////////////////////////////////////////////////////////
+                            VIEWS
+  //////////////////////////////////////////////////////////////*/
 
   /**
    * @notice Linked top hat id for registry lookups.

@@ -1,41 +1,48 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISquadSponsorVault} from 'interfaces/ISquadSponsorVault.sol';
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
 /**
- * @title SquadSponsorVault
+ * @title SquadSponsorBase
  * @author Pacto
- * @notice Per-squad ETH pool with pro-rata sponsor shares; gas spend is paymaster-only.
- * @dev Deploy behind an EIP-1167 minimal proxy (`Clones`); clones call `initialize` once.
+ * @notice Shared per-squad ETH pool, pro-rata sponsor shares, and paymaster-only gas spend.
+ * @dev Inheritance: `SquadSponsor` and `SquadSponsorExt` append state after this layout.
+ *
+ * **Storage layout (append-only — do not reorder or insert variables):**
+ * | Slot | Variable        |
+ * |------|-----------------|
+ * | 0    | `squadId`       |
+ * | 1    | `paymaster`     |
+ * | 2    | `factory`       |
+ * | 3    | `totalShares`   |
+ * | 4    | `sponsorShares` |
+ *
+ * `Initializable` uses ERC-7201 namespaced storage and does not consume these slots.
  */
-contract SquadSponsorVault is ISquadSponsorVault, Initializable {
+abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
   /*///////////////////////////////////////////////////////////////
                             STORAGE
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   bytes32 public squadId;
-  /// @inheritdoc ISquadSponsorVault
-  address public ext;
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   address public paymaster;
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   address public factory;
-  /// @inheritdoc ISquadSponsorVault
-  uint256 public topHatId;
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   uint256 public totalShares;
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   mapping(address sponsor => uint256 shares) public sponsorShares;
 
   /*///////////////////////////////////////////////////////////////
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
 
-  /// @notice Locks direct use of the implementation; clones must call `initialize`.
+  /// @notice Locks direct use of the implementation; clones must call a child `initialize`.
   constructor() {
     _disableInitializers();
   }
@@ -54,34 +61,30 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsorVault
-  function initialize(bytes32 _squadId, address _ext, address _paymaster, address _factory) external initializer {
-    if (_ext == address(0) || _factory == address(0)) revert SquadSponsorVault_ZeroAddress();
-    squadId = _squadId;
-    ext = _ext;
-    paymaster = _paymaster;
-    factory = _factory;
+  /// @inheritdoc ISquadSponsorBase
+  function initialize(bytes32, address, address) external pure {
+    revert SquadSponsorBase_UseChildInitializer();
   }
 
   /*///////////////////////////////////////////////////////////////
                             LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   function deposit() external payable {
     _deposit(msg.sender);
   }
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   function depositFor(address sponsor) external payable {
-    if (sponsor == address(0)) revert SquadSponsorVault_ZeroAddress();
+    if (sponsor == address(0)) revert SquadSponsorBase_ZeroAddress();
     _deposit(sponsor);
   }
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   function withdraw() external {
     uint256 _shares = sponsorShares[msg.sender];
-    if (_shares == 0) revert SquadSponsorVault_NoShares();
+    if (_shares == 0) revert SquadSponsorBase_NoShares();
 
     uint256 _balance = address(this).balance;
     uint256 _amount = (_shares * _balance) / totalShares;
@@ -90,35 +93,32 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
     totalShares -= _shares;
 
     (bool _ok,) = msg.sender.call{value: _amount}('');
-    if (!_ok) revert SquadSponsorVault_TransferFailed();
+    if (!_ok) revert SquadSponsorBase_TransferFailed();
 
     emit Withdrawn(msg.sender, _amount, _shares);
   }
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
   function spendGas(uint256 amount) external {
-    if (msg.sender != paymaster) revert SquadSponsorVault_NotPaymaster();
-    if (amount > address(this).balance) revert SquadSponsorVault_InsufficientBalance();
+    if (msg.sender != paymaster) revert SquadSponsorBase_NotPaymaster();
+    if (amount > address(this).balance) revert SquadSponsorBase_InsufficientBalance();
 
     (bool _ok,) = paymaster.call{value: amount}('');
-    if (!_ok) revert SquadSponsorVault_TransferFailed();
+    if (!_ok) revert SquadSponsorBase_TransferFailed();
 
     emit GasSpent(msg.sender, amount);
-  }
-
-  /// @inheritdoc ISquadSponsorVault
-  function linkTopHat(uint256 _topHatId) external {
-    if (msg.sender != ext) revert SquadSponsorVault_NotExt();
-    if (topHatId != 0) revert SquadSponsorVault_TopHatAlreadyLinked();
-    topHatId = _topHatId;
-    emit TopHatLinked(_topHatId);
   }
 
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsorVault
+  /// @inheritdoc ISquadSponsorBase
+  function isEligible(address member) external view returns (bool eligible) {
+    eligible = _isEligible(member);
+  }
+
+  /// @inheritdoc ISquadSponsorBase
   function withdrawable(address sponsor) external view returns (uint256 amount) {
     uint256 _shares = sponsorShares[sponsor];
     if (_shares == 0 || totalShares == 0) return 0;
@@ -130,11 +130,24 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
   //////////////////////////////////////////////////////////////*/
 
   /**
+   * @notice Seeds shared sponsor clone fields.
+   * @param _squadId Squad identifier bound to this clone.
+   * @param _paymaster Chain paymaster authorized to call `spendGas`.
+   * @param _factory SquadSponsorFactory address.
+   */
+  function _sponsorBaseInit(bytes32 _squadId, address _paymaster, address _factory) internal {
+    if (_paymaster == address(0) || _factory == address(0)) revert SquadSponsorBase_ZeroAddress();
+    squadId = _squadId;
+    paymaster = _paymaster;
+    factory = _factory;
+  }
+
+  /**
    * @notice Mints pro-rata sponsor shares for `sponsor`.
    * @param sponsor Account receiving sponsor shares.
    */
   function _deposit(address sponsor) internal {
-    if (msg.value == 0) revert SquadSponsorVault_ZeroAmount();
+    if (msg.value == 0) revert SquadSponsorBase_ZeroAmount();
 
     uint256 _shares;
     uint256 _balanceBefore = address(this).balance - msg.value;
@@ -150,4 +163,14 @@ contract SquadSponsorVault is ISquadSponsorVault, Initializable {
 
     emit Deposited(sponsor, msg.value, _shares);
   }
+
+  /**
+   * @notice Returns whether `member` may have squad gas sponsored.
+   * @param member Address evaluated for sponsorship eligibility.
+   * @return eligible True when the member qualifies under this clone's rules.
+   */
+  function _isEligible(address member) internal view virtual returns (bool eligible);
+
+  /// @notice Reverts when the base-only initializer is invoked directly.
+  error SquadSponsorBase_UseChildInitializer();
 }

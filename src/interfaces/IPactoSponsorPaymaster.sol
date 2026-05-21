@@ -10,16 +10,12 @@ interface IPactoSponsorPaymaster {
   /**
    * @notice Squad-scoped paymaster payload appended after the ERC-4337 paymaster header.
    * @param squadId Squad identifier (must match factory registry).
-   * @param vault Vault clone for this squad.
-   * @param ext Ext clone for this squad.
-   * @param base Hat clone when wired (`address(0)` pre-wiring).
+   * @param sponsor Sponsor clone for this squad.
    * @param member Account evaluated for sponsorship eligibility (EOA signer or Safe owner).
    */
   struct PaymasterData {
     bytes32 squadId;
-    address vault;
-    address ext;
-    address base;
+    address sponsor;
     address member;
   }
 

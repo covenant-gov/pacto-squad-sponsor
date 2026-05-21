@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 /**
- * @title ISquadSponsorVault
+ * @title ISquadSponsorBase
  * @author Pacto
- * @notice Per-squad ETH pool with pro-rata sponsor shares and paymaster-only gas spend.
+ * @notice Per-squad ETH pool, pro-rata sponsor shares, paymaster-only gas spend, and eligibility hook.
  */
-interface ISquadSponsorVault {
+interface ISquadSponsorBase {
   /*///////////////////////////////////////////////////////////////
                             EVENTS
   //////////////////////////////////////////////////////////////*/
@@ -28,48 +28,38 @@ interface ISquadSponsorVault {
   /**
    * @notice Emitted when the paymaster deducts gas from the pool.
    * @param paymaster Paymaster that received the gas reimbursement.
-   * @param amount ETH transferred from the vault in wei.
+   * @param amount ETH transferred from the sponsor in wei.
    */
   event GasSpent(address indexed paymaster, uint256 amount);
-  /**
-   * @notice Emitted when the Ext clone links a Hats top hat.
-   * @param topHatId Top hat id bound to this vault.
-   */
-  event TopHatLinked(uint256 topHatId);
 
   /*///////////////////////////////////////////////////////////////
                             ERRORS
   //////////////////////////////////////////////////////////////*/
 
   /// @notice Caller is not the wired paymaster.
-  error SquadSponsorVault_NotPaymaster();
-  /// @notice Caller is not this squad's Ext clone.
-  error SquadSponsorVault_NotExt();
+  error SquadSponsorBase_NotPaymaster();
   /// @notice Zero address passed where forbidden.
-  error SquadSponsorVault_ZeroAddress();
+  error SquadSponsorBase_ZeroAddress();
   /// @notice ETH transfer failed.
-  error SquadSponsorVault_TransferFailed();
+  error SquadSponsorBase_TransferFailed();
   /// @notice Deposit amount is zero.
-  error SquadSponsorVault_ZeroAmount();
+  error SquadSponsorBase_ZeroAmount();
   /// @notice Withdrawer has no shares.
-  error SquadSponsorVault_NoShares();
+  error SquadSponsorBase_NoShares();
   /// @notice Spend amount exceeds pool balance.
-  error SquadSponsorVault_InsufficientBalance();
-  /// @notice Top hat already linked for this vault.
-  error SquadSponsorVault_TopHatAlreadyLinked();
+  error SquadSponsorBase_InsufficientBalance();
 
   /*///////////////////////////////////////////////////////////////
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice One-shot initializer for an EIP-1167 vault clone.
+   * @notice One-shot initializer for shared sponsor clone fields.
    * @param squadId Squad identifier bound to this clone.
-   * @param ext This squad's Ext clone address.
    * @param paymaster Chain paymaster authorized to call `spendGas`.
    * @param factory SquadSponsorFactory address.
    */
-  function initialize(bytes32 squadId, address ext, address paymaster, address factory) external;
+  function initialize(bytes32 squadId, address paymaster, address factory) external;
 
   /*///////////////////////////////////////////////////////////////
                             LOGIC
@@ -97,27 +87,22 @@ interface ISquadSponsorVault {
    */
   function spendGas(uint256 amount) external;
 
-  /**
-   * @notice Record the squad's Hats top hat when hat sponsorship is wired.
-   * @param topHatId Top hat id for this squad's tree.
-   */
-  function linkTopHat(uint256 topHatId) external;
-
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
+
+  /**
+   * @notice Returns whether `member` may have squad gas sponsored.
+   * @param member Address evaluated for sponsorship eligibility.
+   * @return eligible True when the member qualifies under this clone's rules.
+   */
+  function isEligible(address member) external view returns (bool eligible);
 
   /**
    * @notice Squad identifier for this clone.
    * @return squadId Bound squad id.
    */
   function squadId() external view returns (bytes32 squadId);
-
-  /**
-   * @notice Paired Ext clone for this vault.
-   * @return ext Ext clone address.
-   */
-  function ext() external view returns (address ext);
 
   /**
    * @notice Wired paymaster for gas spend.
@@ -130,12 +115,6 @@ interface ISquadSponsorVault {
    * @return factory Factory address.
    */
   function factory() external view returns (address factory);
-
-  /**
-   * @notice Linked Hats top hat id (zero until wired).
-   * @return topHatId Top hat id.
-   */
-  function topHatId() external view returns (uint256 topHatId);
 
   /**
    * @notice Total sponsor shares outstanding for this pool.

@@ -2,10 +2,8 @@
 pragma solidity 0.8.30;
 
 import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
-import {ISquadSponsorEligibility} from 'interfaces/ISquadSponsorEligibility.sol';
-import {ISquadSponsorExt} from 'interfaces/ISquadSponsorExt.sol';
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
-import {ISquadSponsorVault} from 'interfaces/ISquadSponsorVault.sol';
 
 import {BasePaymaster} from '@account-abstraction/core/BasePaymaster.sol';
 import {SIG_VALIDATION_FAILED} from '@account-abstraction/core/Helpers.sol';
@@ -76,7 +74,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     _FACTORY = factory_;
   }
 
-  /// @notice Accepts ETH refunded from squad vault clones after `spendGas`.
+  /// @notice Accepts ETH refunded from squad clones after `spendGas`.
   receive() external payable {}
 
   /*///////////////////////////////////////////////////////////////
@@ -87,8 +85,8 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
     if (mode != PostOpMode.opSucceeded) return;
 
-    address _vault = abi.decode(context, (address));
-    ISquadSponsorVault(_vault).spendGas(actualGasCost);
+    address _sponsor = abi.decode(context, (address));
+    ISquadSponsorBase(_sponsor).spendGas(actualGasCost);
   }
 
   /// @inheritdoc BasePaymaster
@@ -101,7 +99,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     _validateRegistry(_data);
 
     uint256 _requiredBalance = (maxCost * _BALANCE_HEADROOM_BPS) / 10_000;
-    if (_data.vault.balance < _requiredBalance) {
+    if (_data.sponsor.balance < _requiredBalance) {
       return ('', SIG_VALIDATION_FAILED);
     }
 
@@ -109,7 +107,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
       return ('', SIG_VALIDATION_FAILED);
     }
 
-    context = abi.encode(_data.vault);
+    context = abi.encode(_data.sponsor);
     validationData = 0;
   }
 
@@ -118,27 +116,18 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Ensures clone addresses match the factory registry for `squadId`.
+   * @notice Ensures the sponsor clone matches the factory registry for `squadId`.
    * @param data Parsed paymaster payload.
    */
   function _validateRegistry(PaymasterData memory data) internal view {
     ISquadSponsorFactory.SquadRecord memory _record = _FACTORY.squads(data.squadId);
-    if (_record.vault != data.vault || _record.ext != data.ext) {
-      revert PactoSponsorPaymaster_CloneMismatch(data.squadId);
-    }
-
-    bool _wired = ISquadSponsorExt(data.ext).hatsWired();
-    if (_wired) {
-      if (data.base == address(0) || _record.base != data.base) {
-        revert PactoSponsorPaymaster_CloneMismatch(data.squadId);
-      }
-    } else if (data.base != address(0)) {
+    if (_record.sponsor != data.sponsor) {
       revert PactoSponsorPaymaster_CloneMismatch(data.squadId);
     }
   }
 
   /**
-   * @notice Resolves eligibility via Ext or hat base and validates the member account binding.
+   * @notice Resolves eligibility and validates the member account binding.
    * @param sender `userOp.sender` (EOA or smart account such as a 4337 Safe).
    * @param data Parsed paymaster payload.
    * @return eligible True when the member may be sponsored.
@@ -150,10 +139,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
       if (sender != data.member) revert PactoSponsorPaymaster_InvalidMemberBinding(sender, data.member);
     }
 
-    ISquadSponsorEligibility _module =
-      ISquadSponsorExt(data.ext).hatsWired() ? ISquadSponsorEligibility(data.base) : ISquadSponsorEligibility(data.ext);
-
-    eligible = _module.isEligible(data.member);
+    eligible = ISquadSponsorBase(data.sponsor).isEligible(data.member);
   }
 
   /**
@@ -164,8 +150,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   function _parsePaymasterData(bytes calldata paymasterAndData) internal pure returns (PaymasterData memory data) {
     bytes calldata _payload = paymasterAndData[UserOperationLib.PAYMASTER_DATA_OFFSET:];
     uint8 _version;
-    (_version, data.squadId, data.vault, data.ext, data.base, data.member) =
-      abi.decode(_payload, (uint8, bytes32, address, address, address, address));
+    (_version, data.squadId, data.sponsor, data.member) = abi.decode(_payload, (uint8, bytes32, address, address));
     if (_version != PAYMASTER_DATA_VERSION) revert PactoSponsorPaymaster_InvalidVersion(_version);
   }
 }

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {SquadSponsorBase} from 'contracts/abstracts/SquadSponsorBase.sol';
+
 import {INavePirataRegistry} from '@pacto-gov/interfaces/factory/INavePirataRegistry.sol';
 import {ISquadSponsor} from 'interfaces/ISquadSponsor.sol';
-import {ISquadSponsorEligibility} from 'interfaces/ISquadSponsorEligibility.sol';
+import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
-import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import {IHats} from 'hats-core/Interfaces/IHats.sol';
 
 /**
@@ -13,8 +14,18 @@ import {IHats} from 'hats-core/Interfaces/IHats.sol';
  * @author Pacto
  * @notice Per-squad hat-based gas eligibility via PactoGov registry or a custom hat list.
  * @dev Deploy behind an EIP-1167 minimal proxy; `_HATS` is immutable on the master copy.
+ *
+ * Inheritance: `SquadSponsorExt is SquadSponsor is SquadSponsorBase`.
+ *
+ * **Storage layout (append-only — do not reorder or insert variables):**
+ * | Slot | Variable              | Contract          |
+ * |------|-----------------------|-------------------|
+ * | 0–4  | base pool fields      | `SquadSponsorBase`|
+ * | 5    | `topHatId`            | `SquadSponsor`    |
+ * | 6    | `registry`            | `SquadSponsor`    |
+ * | 7    | `_customEligibleHats` | `SquadSponsor`    |
  */
-contract SquadSponsor is ISquadSponsor, Initializable {
+contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
   /*///////////////////////////////////////////////////////////////
                             IMMUTABLES
   //////////////////////////////////////////////////////////////*/
@@ -23,11 +34,9 @@ contract SquadSponsor is ISquadSponsor, Initializable {
   IHats internal immutable _HATS;
 
   /*///////////////////////////////////////////////////////////////
-                            STORAGE
+                       STORAGE — SLOT 5–7
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsor
-  bytes32 public squadId;
   /// @inheritdoc ISquadSponsor
   uint256 public topHatId;
   /// @inheritdoc ISquadSponsor
@@ -45,7 +54,6 @@ contract SquadSponsor is ISquadSponsor, Initializable {
    */
   constructor(IHats hats_) {
     _HATS = hats_;
-    _disableInitializers();
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -55,26 +63,78 @@ contract SquadSponsor is ISquadSponsor, Initializable {
   /// @inheritdoc ISquadSponsor
   function initialize(
     bytes32 _squadId,
+    address _paymaster,
+    address _factory,
     uint256 _topHatId,
     address _registry,
     uint256[] calldata _customHats
-  ) external initializer {
-    squadId = _squadId;
-    topHatId = _topHatId;
-    registry = _registry;
+  ) external virtual initializer {
+    _sponsorBaseInit(_squadId, _paymaster, _factory);
+    _sponsorHatInit(_topHatId, _registry, _customHats);
+  }
 
-    uint256 _len = _customHats.length;
-    for (uint256 i = 0; i < _len; ++i) {
-      _customEligibleHats.push(_customHats[i]);
-    }
+  /*///////////////////////////////////////////////////////////////
+                            LOGIC
+  //////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc ISquadSponsor
+  function postInitialize(uint256 _topHatId, address _registry, uint256[] calldata _customHats) external virtual {
+    if (topHatId != 0) revert SquadSponsor_HatsAlreadyWired();
+    _requirePostInitializeAuth(_topHatId);
+    _sponsorHatInit(_topHatId, _registry, _customHats);
+    ISquadSponsorFactory(factory).registerHatsWiring(squadId, _topHatId);
+    emit HatsSponsorshipWired(squadId, _topHatId);
   }
 
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc ISquadSponsorEligibility
-  function isEligible(address member) external view returns (bool eligible) {
+  /// @inheritdoc ISquadSponsor
+  function customEligibleHats(uint256 index) external view returns (uint256 hatId) {
+    hatId = _customEligibleHats[index];
+  }
+
+  /// @inheritdoc ISquadSponsor
+  function customEligibleHatsLength() external view returns (uint256 length) {
+    length = _customEligibleHats.length;
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            INTERNAL HELPERS
+  //////////////////////////////////////////////////////////////*/
+
+  /**
+   * @notice Seeds hat eligibility fields for this clone.
+   * @param _topHatId Linked Hats tree top hat id.
+   * @param _registry PactoGov registry (`address(0)` for custom-hat-only squads).
+   * @param _customHats Optional extra eligible hat ids.
+   */
+  function _sponsorHatInit(uint256 _topHatId, address _registry, uint256[] calldata _customHats) internal {
+    topHatId = _topHatId;
+    registry = _registry;
+
+    delete _customEligibleHats;
+    uint256 _len = _customHats.length;
+    for (uint256 i = 0; i < _len; ++i) {
+      _customEligibleHats.push(_customHats[i]);
+    }
+  }
+
+  /**
+   * @notice Reverts unless caller is factory or Hats tree admin.
+   * @param _topHatId Top hat id being wired.
+   */
+  function _requirePostInitializeAuth(uint256 _topHatId) internal view {
+    if (msg.sender == factory) return;
+    if (_HATS.isAdminOfHat(msg.sender, _topHatId)) return;
+    revert SquadSponsor_NotAllowed();
+  }
+
+  /// @inheritdoc SquadSponsorBase
+  function _isEligible(address member) internal view virtual override returns (bool eligible) {
+    if (topHatId == 0) return false;
+
     if (registry != address(0)) {
       INavePirataRegistry.Deployment memory _deployment = INavePirataRegistry(registry).deployment(topHatId);
       if (_deployment.topHatId != 0) {
@@ -87,15 +147,5 @@ contract SquadSponsor is ISquadSponsor, Initializable {
     for (uint256 i = 0; i < _len; ++i) {
       if (_HATS.isWearerOfHat(member, _customEligibleHats[i])) return true;
     }
-  }
-
-  /// @inheritdoc ISquadSponsor
-  function customEligibleHats(uint256 index) external view returns (uint256 hatId) {
-    hatId = _customEligibleHats[index];
-  }
-
-  /// @inheritdoc ISquadSponsor
-  function customEligibleHatsLength() external view returns (uint256 length) {
-    length = _customEligibleHats.length;
   }
 }

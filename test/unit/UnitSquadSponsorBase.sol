@@ -43,15 +43,21 @@ abstract contract UnitSquadSponsorBase is Test {
     _factory = new SquadSponsorFactory(paymasterAddr, _HATS);
   }
 
-  function _createSquad(bytes32 squadId) internal returns (address vault, address ext) {
-    (vault, ext) = _factory.createSquad(squadId);
+  function _createSquadExt(bytes32 squadId) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsorExt(squadId);
   }
 
-  function _createSquadWithDeposit(
+  function _createSquadExtWithDeposit(bytes32 squadId, uint256 depositAmount) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsorExt{value: depositAmount}(squadId);
+  }
+
+  function _createSquadHat(
     bytes32 squadId,
-    uint256 depositAmount
-  ) internal returns (address vault, address ext) {
-    (vault, ext) = _factory.createSquad{value: depositAmount}(squadId);
+    uint256 topHatId,
+    address registry,
+    uint256[] memory customEligibleHats
+  ) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsor(squadId, topHatId, registry, customEligibleHats);
   }
 
   function _mockHatsAdmin(address user, uint256 topHatId, bool isAdmin) internal {

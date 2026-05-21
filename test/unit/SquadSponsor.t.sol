@@ -31,13 +31,9 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
     super.setUp();
     vm.etch(_REGISTRY, hex'00');
 
-    (address _vault, address _ext) = _createSquad(_squadId);
-    _vault;
-    _ext;
-
     uint256[] memory _customHats = new uint256[](0);
-    address _base = _factory.cloneAndWireSquadSponsor(_squadId, _TOP_HAT_ID, _REGISTRY, _customHats);
-    _sponsor = SquadSponsor(_base);
+    address _sponsorAddr = _factory.createSquadSponsor(_squadId, _TOP_HAT_ID, _REGISTRY, _customHats);
+    _sponsor = SquadSponsor(payable(_sponsorAddr));
   }
 
   function test_Unit_Sponsor_PactoGovCrewAndCaptainEligible() external {
@@ -54,12 +50,8 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
     uint256[] memory _customHats = new uint256[](1);
     _customHats[0] = _CUSTOM_HAT_ID;
 
-    (address _vault, address _ext) = _createSquad(keccak256('custom-squad'));
-    _vault;
-    _ext;
-
-    address _base = _factory.cloneAndWireSquadSponsor(keccak256('custom-squad'), _TOP_HAT_ID, address(0), _customHats);
-    SquadSponsor _customSponsor = SquadSponsor(_base);
+    address _sponsorAddr = _factory.createSquadSponsor(keccak256('custom-squad'), _TOP_HAT_ID, address(0), _customHats);
+    SquadSponsor _customSponsor = SquadSponsor(payable(_sponsorAddr));
 
     _mockHatWearer(_custom, _CUSTOM_HAT_ID, true);
     assertTrue(_customSponsor.isEligible(_custom));
@@ -102,13 +94,9 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
     uint256[] memory _customHats = new uint256[](1);
     _customHats[0] = _CUSTOM_HAT_ID;
 
-    (address _vault, address _ext) = _createSquad(keccak256('registry-fallback'));
-    _vault;
-    _ext;
-
-    address _base =
-      _factory.cloneAndWireSquadSponsor(keccak256('registry-fallback'), _TOP_HAT_ID, _REGISTRY, _customHats);
-    SquadSponsor _fallbackSponsor = SquadSponsor(_base);
+    address _sponsorAddr =
+      _factory.createSquadSponsor(keccak256('registry-fallback'), _TOP_HAT_ID, _REGISTRY, _customHats);
+    SquadSponsor _fallbackSponsor = SquadSponsor(payable(_sponsorAddr));
 
     _mockHatWearer(_custom, _CUSTOM_HAT_ID, true);
     assertTrue(_fallbackSponsor.isEligible(_custom));
@@ -122,12 +110,8 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
     _customHats[0] = 0xC001;
     _customHats[1] = 0xC002;
 
-    (address _vault, address _ext) = _createSquad(keccak256('views-squad'));
-    _vault;
-    _ext;
-
-    address _base = _factory.cloneAndWireSquadSponsor(keccak256('views-squad'), _TOP_HAT_ID, address(0), _customHats);
-    SquadSponsor _viewSponsor = SquadSponsor(_base);
+    address _sponsorAddr = _factory.createSquadSponsor(keccak256('views-squad'), _TOP_HAT_ID, address(0), _customHats);
+    SquadSponsor _viewSponsor = SquadSponsor(payable(_sponsorAddr));
 
     assertEq(_viewSponsor.customEligibleHatsLength(), 2);
     assertEq(_viewSponsor.customEligibleHats(0), 0xC001);
