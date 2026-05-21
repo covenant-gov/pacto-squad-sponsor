@@ -10,37 +10,8 @@ import {ISquadSponsor} from 'interfaces/ISquadSponsor.sol';
  */
 interface ISquadSponsorExt is ISquadSponsor {
   /*///////////////////////////////////////////////////////////////
-                            EVENTS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Emitted when an address is added or removed from the permit list.
-   * @param member Address whose permit status changed.
-   * @param permitted True when added to the list, false when removed.
-   */
-  event PermittedAddressUpdated(address indexed member, bool permitted);
-  /**
-   * @notice Emitted when address owner role is transferred.
-   * @param previousOwner Outgoing address-list admin.
-   * @param newOwner Incoming address-list admin.
-   */
-  event AddressOwnerTransferred(address indexed previousOwner, address indexed newOwner);
-
-  /*///////////////////////////////////////////////////////////////
-                            ERRORS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice Caller is not the address owner.
-  error SquadSponsorExt_NotAddressOwner();
-  /// @notice Reverts if hat-style `initialize` overloads are used on an Ext clone.
-  error SquadSponsorExt_UseAddressInitializer();
-  /// @notice New owner address is zero.
-  error SquadSponsorExt_ZeroAddress();
-
-  /*///////////////////////////////////////////////////////////////
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice One-shot initializer for an EIP-1167 Ext clone.
    * @param squadId Squad identifier bound to this clone.
@@ -53,6 +24,13 @@ interface ISquadSponsorExt is ISquadSponsor {
   /*///////////////////////////////////////////////////////////////
                             LOGIC
   //////////////////////////////////////////////////////////////*/
+  /**
+   * @notice Wire hat-based eligibility on this Ext clone.
+   * @param topHatId Squad Hats tree top hat id.
+   * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
+   * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
+   */
+  function postInitialize(uint256 topHatId, address registry, uint256[] calldata customEligibleHats) external;
 
   /**
    * @notice Set whether `member` is eligible for sponsorship via address list.
@@ -70,7 +48,6 @@ interface ISquadSponsorExt is ISquadSponsor {
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Early-bird admin for address-list updates.
    * @return owner Address owner.
@@ -79,7 +56,7 @@ interface ISquadSponsorExt is ISquadSponsor {
 
   /**
    * @notice Whether hat sponsorship has been wired via `postInitialize`.
-   * @return wired True after hat migration.
+   * @return wired True after hat migration (`topHatId != 0`).
    */
   function hatsWired() external view returns (bool wired);
 

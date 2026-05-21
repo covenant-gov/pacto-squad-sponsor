@@ -67,6 +67,45 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
     assertTrue(_sponsor.isEligible(_captain));
   }
 
+  function test_Unit_Sponsor_OnlyCrewEligible() external {
+    _mockRegistryDeployment();
+    _mockHatWearer(_crew, _CREW_HAT_ID, true);
+    _mockHatWearer(_captain, _CAPTAIN_HAT_ID, false);
+
+    assertTrue(_sponsor.isEligible(_crew));
+    assertFalse(_sponsor.isEligible(_captain));
+  }
+
+  function test_Unit_Sponsor_SecondCustomHatEligible() external {
+    uint256[] memory _customHats = new uint256[](2);
+    _customHats[0] = 0xC010;
+    _customHats[1] = _CUSTOM_HAT_ID;
+
+    address _sponsorAddr =
+      _factory.createSquadSponsor(keccak256('second-custom-hat'), _TOP_HAT_ID, address(0), _customHats);
+    SquadSponsor _customSponsor = SquadSponsor(payable(_sponsorAddr));
+
+    _mockHatWearer(_custom, _CUSTOM_HAT_ID, true);
+    assertTrue(_customSponsor.isEligible(_custom));
+    assertFalse(_customSponsor.isEligible(_outsider));
+  }
+
+  function test_Unit_Sponsor_ZeroTopHatIdNotEligible() external {
+    uint256[] memory _customHats = new uint256[](0);
+    address _sponsorAddr = _factory.createSquadSponsor(keccak256('zero-top-hat'), 0, address(0), _customHats);
+    SquadSponsor _zeroTopSponsor = SquadSponsor(payable(_sponsorAddr));
+
+    assertFalse(_zeroTopSponsor.isEligible(_crew));
+  }
+
+  function test_Unit_Sponsor_DepositAndWithdrawable() external {
+    vm.deal(address(this), 1 ether);
+    _sponsor.deposit{value: 1 ether}();
+
+    assertEq(_sponsor.withdrawable(address(this)), 1 ether);
+    assertEq(_sponsor.sponsorShares(address(this)), 1 ether);
+  }
+
   function test_Unit_Sponsor_RegistryZeroDeploymentUsesCustomHats() external {
     vm.mockCall(
       _REGISTRY,

@@ -1,32 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
+
 /**
  * @title ISquadSponsorFactory
  * @author Pacto
  * @notice Chain singleton that deploys per-squad sponsor clones.
  */
-interface ISquadSponsorFactory {
-  /*///////////////////////////////////////////////////////////////
-                            ENUMS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Which sponsor implementation was cloned for a squad.
-   * @param NONE Unregistered squad.
-   * @param SPONSOR Hat-first `SquadSponsor` clone.
-   * @param EXT Address-first `SquadSponsorExt` clone.
-   */
-  enum SquadVariant {
-    NONE,
-    SPONSOR,
-    EXT
-  }
-
+interface ISquadSponsorFactory is ISquadSponsorCommon {
   /*///////////////////////////////////////////////////////////////
                             STRUCTS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice On-chain registry row for a squad's sponsor clone.
    * @param sponsor Sponsor clone address.
@@ -40,50 +25,8 @@ interface ISquadSponsorFactory {
   }
 
   /*///////////////////////////////////////////////////////////////
-                            EVENTS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Emitted when a sponsor clone is created for a squad.
-   * @param squadId Squad identifier registered by the factory.
-   * @param sponsor New sponsor clone address.
-   * @param variant Which implementation was deployed.
-   * @param addressOwner First depositor and initial address-list admin (Ext path only).
-   */
-  event SquadCreated(bytes32 indexed squadId, address sponsor, SquadVariant variant, address indexed addressOwner);
-  /**
-   * @notice Emitted when hat sponsorship wiring is recorded.
-   * @param squadId Squad identifier updated in the registry.
-   * @param topHatId Linked Hats top hat id.
-   */
-  event HatsWiringRegistered(bytes32 indexed squadId, uint256 topHatId);
-
-  /*///////////////////////////////////////////////////////////////
-                            ERRORS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Zero address passed where forbidden.
-   * @param field Name of the argument that was zero.
-   */
-  error SquadSponsorFactory_ZeroAddress(string field);
-  /**
-   * @notice Squad id already registered.
-   * @param squadId Duplicate squad identifier.
-   */
-  error SquadSponsorFactory_SquadAlreadyExists(bytes32 squadId);
-  /// @notice Caller is not the registered sponsor clone for this squad.
-  error SquadSponsorFactory_NotSponsor();
-  /**
-   * @notice Unknown squad id.
-   * @param squadId Squad identifier not found in the registry.
-   */
-  error SquadSponsorFactory_UnknownSquad(bytes32 squadId);
-
-  /*///////////////////////////////////////////////////////////////
                             LOGIC
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Deploy an Ext clone for `squadId` and set `msg.sender` as address owner.
    * @param squadId Squad identifier from the app.
@@ -107,7 +50,7 @@ interface ISquadSponsorFactory {
   ) external payable returns (address sponsor);
 
   /**
-   * @notice Callback from a sponsor clone after successful `postInitialize`.
+   * @notice Callback from a sponsor clone after successful hat wiring.
    * @param squadId Squad identifier.
    * @param topHatId Linked top hat id.
    */
@@ -116,7 +59,6 @@ interface ISquadSponsorFactory {
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Wired paymaster for all squad sponsor clones.
    * @return paymaster Paymaster address.
@@ -127,7 +69,7 @@ interface ISquadSponsorFactory {
    * @notice Hats Protocol singleton used by sponsor clones.
    * @return hats Hats address.
    */
-  function HATS() external view returns (address hats);
+  function hats() external view returns (address hats);
 
   /**
    * @notice SquadSponsor implementation used for EIP-1167 clones.

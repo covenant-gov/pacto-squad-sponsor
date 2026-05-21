@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
+import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
 import {RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
@@ -75,7 +76,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
   }
 
   function test_Unit_Pool_SpendGasRevertsForNonPaymaster() external {
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_NotPaymaster.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotPaymaster.selector);
     _pool.spendGas(1 ether);
   }
 
@@ -133,24 +134,24 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
 
   function test_Unit_Pool_DepositForZeroAddressReverts() external {
     vm.deal(address(this), 1 ether);
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_ZeroAddress.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     _pool.depositFor{value: 1 ether}(address(0));
   }
 
   function test_Unit_Pool_DepositZeroAmountReverts() external {
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_ZeroAmount.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAmount.selector);
     _pool.deposit();
   }
 
   function test_Unit_Pool_WithdrawNoSharesReverts() external {
     vm.prank(_alice);
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_NoShares.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_NoShares.selector);
     _pool.withdraw();
   }
 
   function test_Unit_Pool_SpendGasInsufficientBalanceReverts() external {
     vm.prank(address(_paymaster));
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_InsufficientBalance.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_InsufficientBalance.selector);
     _pool.spendGas(11 ether);
   }
 
@@ -188,13 +189,35 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     assertEq(_pool.sponsorShares(_bob), 2 ether);
   }
 
+  function test_Unit_Pool_DepositAfterZeroBalanceDrainMintsOneToOne() external {
+    vm.prank(address(_paymaster));
+    _pool.spendGas(10 ether);
+
+    vm.deal(address(this), 2 ether);
+    _pool.depositFor{value: 2 ether}(_bob);
+
+    assertEq(_pool.sponsorShares(_bob), 2 ether);
+    assertEq(_pool.totalShares(), 12 ether);
+  }
+
+  function test_Unit_Pool_WithdrawableZeroWhenTotalSharesZero() external {
+    vm.deal(_alice, 1 ether);
+    vm.prank(_alice);
+    _pool.deposit{value: 1 ether}();
+
+    vm.store(address(_pool), bytes32(uint256(3)), bytes32(0));
+
+    assertEq(_pool.sponsorShares(_alice), 1 ether);
+    assertEq(_pool.withdrawable(_alice), 0);
+  }
+
   function test_Unit_Pool_WithdrawTransferFailedReverts() external {
     RejectEthReceiver _receiver = new RejectEthReceiver();
     vm.deal(address(this), 1 ether);
     _pool.depositFor{value: 1 ether}(address(_receiver));
 
     vm.prank(address(_receiver));
-    vm.expectRevert(ISquadSponsorBase.SquadSponsorBase_TransferFailed.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_TransferFailed.selector);
     _pool.withdraw();
   }
 }

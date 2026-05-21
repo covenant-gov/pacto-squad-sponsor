@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
+import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
@@ -96,9 +97,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     PackedUserOperation memory _userOp = _buildUserOpWithSponsor(_member, _member, _wrongSponsor);
 
     vm.prank(_ENTRY_POINT);
-    vm.expectRevert(
-      abi.encodeWithSelector(PactoSponsorPaymaster.PactoSponsorPaymaster_CloneMismatch.selector, _squadId)
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_CloneMismatch.selector, _squadId));
     _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
@@ -116,9 +115,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     PackedUserOperation memory _userOp = _buildUserOp(_member, _other);
 
     vm.prank(_ENTRY_POINT);
-    vm.expectRevert(
-      abi.encodeWithSelector(PactoSponsorPaymaster.PactoSponsorPaymaster_InvalidMemberBinding.selector, _member, _other)
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_InvalidMemberBinding.selector, _member, _other));
     _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
@@ -130,9 +127,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     _userOp.paymasterAndData = bytes.concat(_header, _payload);
 
     vm.prank(_ENTRY_POINT);
-    vm.expectRevert(
-      abi.encodeWithSelector(PactoSponsorPaymaster.PactoSponsorPaymaster_InvalidVersion.selector, uint8(99))
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_InvalidVersion.selector, uint8(99)));
     _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
@@ -161,7 +156,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
   }
 
   function test_Unit_Paymaster_ConstructorRevertsZeroFactory() external {
-    vm.expectRevert(PactoSponsorPaymaster.PactoSponsorPaymaster_ZeroFactory.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)));
   }
 

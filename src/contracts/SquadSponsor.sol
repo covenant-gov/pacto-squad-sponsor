@@ -7,54 +7,20 @@ import {INavePirataRegistry} from '@pacto-gov/interfaces/factory/INavePirataRegi
 import {ISquadSponsor} from 'interfaces/ISquadSponsor.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
-import {IHats} from 'hats-core/Interfaces/IHats.sol';
-
 /**
  * @title SquadSponsor
  * @author Pacto
  * @notice Per-squad hat-based gas eligibility via PactoGov registry or a custom hat list.
- * @dev Deploy behind an EIP-1167 minimal proxy; `_HATS` is immutable on the master copy.
- *
- * Inheritance: `SquadSponsorExt is SquadSponsor is SquadSponsorBase`.
- *
- * **Storage layout (append-only — do not reorder or insert variables):**
- * | Slot | Variable              | Contract          |
- * |------|-----------------------|-------------------|
- * | 0–4  | base pool fields      | `SquadSponsorBase`|
- * | 5    | `topHatId`            | `SquadSponsor`    |
- * | 6    | `registry`            | `SquadSponsor`    |
- * | 7    | `_customEligibleHats` | `SquadSponsor`    |
+ * @dev Deploy behind an EIP-1167 minimal proxy; HATS is baked in via `SquadSponsorConstants.HATS_ADDRESS`.
  */
 contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
-  /*///////////////////////////////////////////////////////////////
-                            IMMUTABLES
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice Hats Protocol singleton for wearer checks.
-  IHats internal immutable _HATS;
-
-  /*///////////////////////////////////////////////////////////////
-                       STORAGE — SLOT 5–7
-  //////////////////////////////////////////////////////////////*/
-
   /// @inheritdoc ISquadSponsor
   uint256 public topHatId;
   /// @inheritdoc ISquadSponsor
   address public registry;
+
   /// @notice Custom eligible hat ids configured at initialization.
   uint256[] internal _customEligibleHats;
-
-  /*///////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Master-copy constructor; bakes the Hats singleton into implementation runtime code.
-   * @param hats_ Hats Protocol address for this chain.
-   */
-  constructor(IHats hats_) {
-    _HATS = hats_;
-  }
 
   /*///////////////////////////////////////////////////////////////
                             INITIALIZER
@@ -74,19 +40,6 @@ contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
   }
 
   /*///////////////////////////////////////////////////////////////
-                            LOGIC
-  //////////////////////////////////////////////////////////////*/
-
-  /// @inheritdoc ISquadSponsor
-  function postInitialize(uint256 _topHatId, address _registry, uint256[] calldata _customHats) external virtual {
-    if (topHatId != 0) revert SquadSponsor_HatsAlreadyWired();
-    _requirePostInitializeAuth(_topHatId);
-    _sponsorHatInit(_topHatId, _registry, _customHats);
-    ISquadSponsorFactory(factory).registerHatsWiring(squadId, _topHatId);
-    emit HatsSponsorshipWired(squadId, _topHatId);
-  }
-
-  /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
 
@@ -103,7 +56,6 @@ contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
   /*///////////////////////////////////////////////////////////////
                             INTERNAL HELPERS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Seeds hat eligibility fields for this clone.
    * @param _topHatId Linked Hats tree top hat id.
@@ -122,13 +74,16 @@ contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
   }
 
   /**
-   * @notice Reverts unless caller is factory or Hats tree admin.
-   * @param _topHatId Top hat id being wired.
+   * @notice Wires hat eligibility and records wiring in the factory registry.
+   * @param _topHatId Linked Hats tree top hat id.
+   * @param _registry PactoGov registry (`address(0)` for custom-hat-only squads).
+   * @param _customHats Optional extra eligible hat ids.
    */
-  function _requirePostInitializeAuth(uint256 _topHatId) internal view {
-    if (msg.sender == factory) return;
-    if (_HATS.isAdminOfHat(msg.sender, _topHatId)) return;
-    revert SquadSponsor_NotAllowed();
+  function _wireHats(uint256 _topHatId, address _registry, uint256[] calldata _customHats) internal {
+    if (topHatId != 0) revert SS_AlreadyWired();
+    _sponsorHatInit(_topHatId, _registry, _customHats);
+    ISquadSponsorFactory(factory).registerHatsWiring(squadId, _topHatId);
+    emit HatsWired(squadId, _topHatId);
   }
 
   /// @inheritdoc SquadSponsorBase

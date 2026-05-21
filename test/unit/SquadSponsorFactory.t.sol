@@ -5,6 +5,7 @@ import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
+import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
@@ -27,7 +28,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
 
     ISquadSponsorFactory.SquadRecord memory _record = _factory.squads(_squadId);
     assertEq(_record.sponsor, _sponsor);
-    assertEq(uint256(_record.variant), uint256(ISquadSponsorFactory.SquadVariant.EXT));
+    assertEq(uint256(_record.variant), uint256(ISquadSponsorCommon.SquadVariant.EXT));
     assertEq(_factory.squadIdBySponsor(_sponsor), _squadId);
   }
 
@@ -37,7 +38,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
 
     ISquadSponsorFactory.SquadRecord memory _record = _factory.squads(_squadId);
     assertEq(_record.sponsor, _sponsor);
-    assertEq(uint256(_record.variant), uint256(ISquadSponsorFactory.SquadVariant.SPONSOR));
+    assertEq(uint256(_record.variant), uint256(ISquadSponsorCommon.SquadVariant.SPONSOR));
     assertEq(_record.topHatId, 0x100);
   }
 
@@ -60,9 +61,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
   function test_Unit_Factory_DuplicateSquadExtReverts() external {
     _createSquadExt(_squadId);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_SquadAlreadyExists.selector, _squadId)
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_SquadAlreadyExists.selector, _squadId));
     _factory.createSquadSponsorExt(_squadId);
   }
 
@@ -70,9 +69,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     uint256[] memory _customHats = new uint256[](0);
     _factory.createSquadSponsor(_squadId, 0x100, address(0), _customHats);
 
-    vm.expectRevert(
-      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_SquadAlreadyExists.selector, _squadId)
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_SquadAlreadyExists.selector, _squadId));
     _factory.createSquadSponsor(_squadId, 0x101, address(0), _customHats);
   }
 
@@ -94,9 +91,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
   }
 
   function test_Unit_Factory_RegisterHatsWiringUnknownSquadReverts() external {
-    vm.expectRevert(
-      abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_UnknownSquad.selector, _MISSING_SQUAD_ID)
-    );
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_UnknownSquad.selector, _MISSING_SQUAD_ID));
     _factory.registerHatsWiring(_MISSING_SQUAD_ID, 0x100);
   }
 
@@ -104,17 +99,16 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     vm.prank(_creator);
     _factory.createSquadSponsorExt(_squadId);
 
-    vm.expectRevert(ISquadSponsorFactory.SquadSponsorFactory_NotSponsor.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
     _factory.registerHatsWiring(_squadId, 0x100);
   }
 
   function test_Unit_Factory_ConstructorZeroPaymasterReverts() external {
-    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_ZeroAddress.selector, 'paymaster'));
-    new SquadSponsorFactory(address(0), _HATS);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'paymaster'));
+    new SquadSponsorFactory(address(0));
   }
 
-  function test_Unit_Factory_ConstructorZeroHatsReverts() external {
-    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorFactory.SquadSponsorFactory_ZeroAddress.selector, 'hats'));
-    new SquadSponsorFactory(address(_paymaster), address(0));
+  function test_Unit_Factory_HatsReturnsConstant() external view {
+    assertEq(_factory.hats(), 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137);
   }
 }

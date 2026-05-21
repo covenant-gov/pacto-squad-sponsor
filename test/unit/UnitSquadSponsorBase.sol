@@ -16,7 +16,8 @@ import {Test} from 'forge-std/Test.sol';
  * @notice Shared fixture for squad sponsor unit tests.
  */
 abstract contract UnitSquadSponsorBase is Test {
-  address internal constant _HATS = address(uint160(uint256(keccak256('pacto.sponsor.HATS'))));
+  /// @dev Hats Protocol v1 singleton — must match `SquadSponsorBase._HATS`.
+  address internal constant _HATS = 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137;
   address internal constant _ENTRY_POINT = address(uint160(uint256(keccak256('pacto.sponsor.ENTRY_POINT'))));
 
   SquadSponsorFactory internal _factory;
@@ -40,7 +41,7 @@ abstract contract UnitSquadSponsorBase is Test {
     address factoryAddr = vm.computeCreateAddress(address(this), nonce + 1);
 
     _paymaster = new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(factoryAddr));
-    _factory = new SquadSponsorFactory(paymasterAddr, _HATS);
+    _factory = new SquadSponsorFactory(paymasterAddr);
   }
 
   function _createSquadExt(bytes32 squadId) internal returns (address sponsor) {

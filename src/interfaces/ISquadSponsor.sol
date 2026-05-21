@@ -10,29 +10,8 @@ import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
  */
 interface ISquadSponsor is ISquadSponsorBase {
   /*///////////////////////////////////////////////////////////////
-                            EVENTS
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Emitted when hat sponsorship is wired on this clone.
-   * @param squadId Squad identifier for this clone.
-   * @param topHatId Linked Hats top hat id.
-   */
-  event HatsSponsorshipWired(bytes32 indexed squadId, uint256 topHatId);
-
-  /*///////////////////////////////////////////////////////////////
-                            ERRORS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice Hat sponsorship already wired for this squad.
-  error SquadSponsor_HatsAlreadyWired();
-  /// @notice Caller is not authorized to wire hat sponsorship.
-  error SquadSponsor_NotAllowed();
-
-  /*///////////////////////////////////////////////////////////////
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice One-shot initializer for an EIP-1167 hat clone.
    * @param squadId Squad identifier bound to this clone.
@@ -52,21 +31,8 @@ interface ISquadSponsor is ISquadSponsorBase {
   ) external;
 
   /*///////////////////////////////////////////////////////////////
-                            LOGIC
-  //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Wire hat-based eligibility on this clone (Ext migration path).
-   * @param topHatId Squad Hats tree top hat id.
-   * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
-   * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
-   */
-  function postInitialize(uint256 topHatId, address registry, uint256[] calldata customEligibleHats) external;
-
-  /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Linked top hat id for registry lookups.
    * @return topHatId Top hat id.

@@ -14,12 +14,11 @@ contract Deploy is Script {
     vm.startBroadcast();
     address deployer = msg.sender;
 
-    SponsorDeployLib.Addresses memory addrs =
-      SponsorDeployLib.predict(deployer, saltFactory, config.entryPoint, config.hats);
+    SponsorDeployLib.Addresses memory addrs = SponsorDeployLib.predict(deployer, saltFactory, config.entryPoint);
 
     _assertPredicted(deployer, addrs, config);
 
-    SponsorDeployLib.deploy(addrs, config.entryPoint, config.hats);
+    SponsorDeployLib.deploy(addrs, config.entryPoint);
     vm.stopBroadcast();
   }
 
@@ -29,7 +28,7 @@ contract Deploy is Script {
     Constants.ChainConfig memory config
   ) internal pure {
     bytes32 paymasterHash = SponsorDeployLib.paymasterInitCodeHash(config.entryPoint, addrs.factory);
-    bytes32 factoryHash = SponsorDeployLib.factoryInitCodeHash(addrs.paymaster, config.hats);
+    bytes32 factoryHash = SponsorDeployLib.factoryInitCodeHash(addrs.paymaster);
 
     require(
       vm.computeCreate2Address(addrs.saltPaymaster, paymasterHash, deployer) == addrs.paymaster,

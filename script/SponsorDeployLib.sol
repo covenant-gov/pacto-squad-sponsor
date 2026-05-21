@@ -27,8 +27,8 @@ library SponsorDeployLib {
   }
 
   /// @notice Init code hash for factory CREATE2 deploy.
-  function factoryInitCodeHash(address paymaster, address hats) internal pure returns (bytes32) {
-    return keccak256(abi.encodePacked(type(SquadSponsorFactory).creationCode, abi.encode(paymaster, hats)));
+  function factoryInitCodeHash(address paymaster) internal pure returns (bytes32) {
+    return keccak256(abi.encodePacked(type(SquadSponsorFactory).creationCode, abi.encode(paymaster)));
   }
 
   /// @notice Init code hash for paymaster CREATE2 deploy.
@@ -43,8 +43,7 @@ library SponsorDeployLib {
   function predict(
     address deployer,
     bytes32 saltFactory,
-    address entryPoint,
-    address hats
+    address entryPoint
   ) internal pure returns (Addresses memory addrs) {
     addrs.saltFactory = saltFactory;
     addrs.saltPaymaster = paymasterSalt(saltFactory);
@@ -52,7 +51,7 @@ library SponsorDeployLib {
     address factory = address(0x1);
     for (uint256 j = 0; j < 32; j++) {
       addrs.paymaster = _create2(deployer, addrs.saltPaymaster, paymasterInitCodeHash(entryPoint, factory));
-      address factoryNext = _create2(deployer, addrs.saltFactory, factoryInitCodeHash(addrs.paymaster, hats));
+      address factoryNext = _create2(deployer, addrs.saltFactory, factoryInitCodeHash(addrs.paymaster));
       if (factoryNext == factory && j > 0) {
         address paymasterCheck = _create2(deployer, addrs.saltPaymaster, paymasterInitCodeHash(entryPoint, factoryNext));
         if (paymasterCheck == addrs.paymaster) {
@@ -68,15 +67,14 @@ library SponsorDeployLib {
   /// @notice Deploy factory and paymaster at the predicted CREATE2 addresses.
   function deploy(
     Addresses memory addrs,
-    address entryPoint,
-    address hats
+    address entryPoint
   ) internal returns (SquadSponsorFactory factory, PactoSponsorPaymaster paymaster) {
     paymaster = new PactoSponsorPaymaster{salt: addrs.saltPaymaster}(
       IEntryPoint(entryPoint), ISquadSponsorFactory(addrs.factory)
     );
     if (address(paymaster) != addrs.paymaster) revert SponsorDeployLib_Unresolved();
 
-    factory = new SquadSponsorFactory{salt: addrs.saltFactory}(addrs.paymaster, hats);
+    factory = new SquadSponsorFactory{salt: addrs.saltFactory}(addrs.paymaster);
     if (address(factory) != addrs.factory) revert SponsorDeployLib_Unresolved();
   }
 
