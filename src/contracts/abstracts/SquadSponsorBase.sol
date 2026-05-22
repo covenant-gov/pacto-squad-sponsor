@@ -30,7 +30,7 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
   mapping(address sponsor => uint256 shares) public sponsorShares;
 
   /*///////////////////////////////////////////////////////////////
-                            CONSTRUCTOR / INITIALIZER
+                            CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
 
   /// @notice Locks direct use of the implementation; clones must call a child `initialize`.

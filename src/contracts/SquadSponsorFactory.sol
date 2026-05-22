@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsor} from 'contracts/SquadSponsor.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorConstants} from 'contracts/utils/constants/SquadSponsorConstants.sol';
@@ -8,12 +9,14 @@ import {SquadSponsorConstants} from 'contracts/utils/constants/SquadSponsorConst
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
+import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
+
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 /**
  * @title SquadSponsorFactory
  * @author Pacto
- * @notice Chain singleton that deploys per-squad sponsor clones.
+ * @notice Chain singleton that deploys per-squad sponsor clones and its wired paymaster.
  */
 contract SquadSponsorFactory is ISquadSponsorFactory {
   /// @inheritdoc ISquadSponsorFactory
@@ -23,6 +26,7 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   address public sponsorImplementation;
   /// @inheritdoc ISquadSponsorFactory
   address public extImplementation;
+
   /// @notice Per-squad registry rows keyed by squad id.
   mapping(bytes32 squadId => SquadRecord record) internal _squads;
   /// @inheritdoc ISquadSponsorFactory
@@ -32,14 +36,12 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
   /**
-   * @notice Deploys master copies for SquadSponsor and SquadSponsorExt clones.
-   * @param paymaster_ ERC-4337 paymaster authorized to spend from sponsor clones.
+   * @notice Deploys the chain paymaster and master copies for squad clones.
+   * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
    */
-  constructor(address paymaster_) {
-    if (paymaster_ == address(0)) revert SS_ZeroField('paymaster');
-
-    PAYMASTER = paymaster_;
-
+  constructor(IEntryPoint entryPoint) {
+    if (address(entryPoint) == address(0)) revert SS_ZeroField('entryPoint');
+    PAYMASTER = address(new PactoSponsorPaymaster(entryPoint, ISquadSponsorFactory(address(this))));
     sponsorImplementation = address(new SquadSponsor());
     extImplementation = address(new SquadSponsorExt());
   }
@@ -103,7 +105,6 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   /*///////////////////////////////////////////////////////////////
                             INTERNAL HELPERS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Records a newly deployed sponsor clone in the factory registry.
    * @param squadId Squad identifier.

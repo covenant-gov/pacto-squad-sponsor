@@ -5,7 +5,6 @@ import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
-import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -36,12 +35,8 @@ abstract contract UnitSquadSponsorBase is Test {
       abi.encode(true)
     );
 
-    uint256 nonce = vm.getNonce(address(this));
-    address paymasterAddr = vm.computeCreateAddress(address(this), nonce);
-    address factoryAddr = vm.computeCreateAddress(address(this), nonce + 1);
-
-    _paymaster = new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(factoryAddr));
-    _factory = new SquadSponsorFactory(paymasterAddr);
+    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT));
+    _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
   }
 
   function _createSquadExt(bytes32 squadId) internal returns (address sponsor) {

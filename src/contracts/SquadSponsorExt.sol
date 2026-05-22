@@ -97,7 +97,6 @@ contract SquadSponsorExt is ISquadSponsorExt, SquadSponsor {
   /*///////////////////////////////////////////////////////////////
                             INTERNAL HELPERS
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice Reverts unless caller is the address owner.
    */

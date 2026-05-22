@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
+import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
+
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
@@ -103,9 +105,13 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     _factory.registerHatsWiring(_squadId, 0x100);
   }
 
-  function test_Unit_Factory_ConstructorZeroPaymasterReverts() external {
-    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'paymaster'));
-    new SquadSponsorFactory(address(0));
+  function test_Unit_Factory_ConstructorZeroEntryPointReverts() external {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'entryPoint'));
+    new SquadSponsorFactory(IEntryPoint(address(0)));
+  }
+
+  function test_Unit_Factory_DeploysPaymasterInConstructor() external view {
+    assertEq(_factory.PAYMASTER(), address(_paymaster));
   }
 
   function test_Unit_Factory_HatsReturnsConstant() external view {

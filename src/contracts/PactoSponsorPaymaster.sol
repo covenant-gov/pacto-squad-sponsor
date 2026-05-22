@@ -41,6 +41,10 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     _FACTORY = factory_;
   }
 
+  /*///////////////////////////////////////////////////////////////
+                            LOGIC
+  //////////////////////////////////////////////////////////////*/
+
   /// @notice Accepts ETH refunded from squad clones after `spendGas`.
   receive() external payable {}
 
