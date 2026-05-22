@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
-import {ISquadSponsorExt} from 'interfaces/ISquadSponsorExt.sol';
+import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
@@ -23,8 +23,8 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   function setUp() public override {
     super.setUp();
     vm.prank(_owner);
-    (, address _extAddr) = _factory.createSquad(_squadId);
-    _ext = SquadSponsorExt(_extAddr);
+    address _sponsor = _factory.createSquadSponsorExt(_squadId);
+    _ext = SquadSponsorExt(payable(_sponsor));
   }
 
   function test_Unit_Ext_SetPermittedAddress() external {
@@ -41,7 +41,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
 
   function test_Unit_Ext_SetPermittedAddressOnlyOwner() external {
     vm.prank(_other);
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_NotAddressOwner.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
     _ext.setPermittedAddress(_member, true);
   }
 
@@ -58,75 +58,154 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
 
   function test_Unit_Ext_PostInitializeFromFactory() external {
     uint256 _topHatId = 0x300;
-    address _base = makeAddr('base');
+    uint256[] memory _customHats = new uint256[](1);
+    _customHats[0] = 0xBEEF;
 
     vm.prank(address(_factory));
-    _ext.postInitialize(_topHatId, _base);
+    _ext.postInitialize(_topHatId, address(0), _customHats);
 
     assertTrue(_ext.hatsWired());
-    assertEq(_ext.squadSponsorBase(), _base);
+    assertEq(_ext.topHatId(), _topHatId);
+    assertEq(_ext.customEligibleHatsLength(), 1);
   }
 
   function test_Unit_Ext_PostInitializeFromAddressOwner() external {
     uint256 _topHatId = 0x301;
-    address _base = makeAddr('base');
+    uint256[] memory _customHats = new uint256[](0);
 
     vm.prank(_owner);
-    _ext.postInitialize(_topHatId, _base);
+    _ext.postInitialize(_topHatId, address(0), _customHats);
 
     assertTrue(_ext.hatsWired());
+    assertEq(_ext.addressOwner(), address(0));
   }
 
   function test_Unit_Ext_PostInitializeFromHatsAdmin() external {
     uint256 _topHatId = 0x302;
-    address _base = makeAddr('base');
+    uint256[] memory _customHats = new uint256[](0);
     address _hatsAdmin = makeAddr('hatsAdmin');
 
     _mockHatsAdmin(_hatsAdmin, _topHatId, true);
 
     vm.prank(_hatsAdmin);
-    _ext.postInitialize(_topHatId, _base);
+    _ext.postInitialize(_topHatId, address(0), _customHats);
 
     assertTrue(_ext.hatsWired());
   }
 
   function test_Unit_Ext_PostInitializeRevertsUnauthorized() external {
+    uint256[] memory _customHats = new uint256[](0);
+
     vm.prank(_other);
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_NotAllowed.selector);
-    _ext.postInitialize(0x303, makeAddr('base'));
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
+    _ext.postInitialize(0x303, address(0), _customHats);
   }
 
   function test_Unit_Ext_PostInitializeRevertsTwice() external {
-    vm.prank(address(_factory));
-    _ext.postInitialize(0x304, makeAddr('base'));
+    uint256[] memory _customHats = new uint256[](0);
 
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_HatsAlreadyWired.selector);
     vm.prank(address(_factory));
-    _ext.postInitialize(0x305, makeAddr('base2'));
+    _ext.postInitialize(0x304, address(0), _customHats);
+
+    vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
+    vm.prank(address(_factory));
+    _ext.postInitialize(0x305, address(0), _customHats);
   }
 
   function test_Unit_Ext_SetPermittedAddressZeroMemberReverts() external {
     vm.prank(_owner);
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     _ext.setPermittedAddress(address(0), true);
   }
 
-  function test_Unit_Ext_PostInitializeZeroBaseReverts() external {
-    vm.prank(address(_factory));
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroBase.selector);
-    _ext.postInitialize(0x306, address(0));
+  function test_Unit_Ext_SetPermittedAddressAfterWiringReverts() external {
+    uint256[] memory _customHats = new uint256[](0);
+
+    vm.prank(_owner);
+    _ext.postInitialize(0x306, address(0), _customHats);
+
+    vm.prank(_owner);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
+    _ext.setPermittedAddress(_member, true);
   }
 
   function test_Unit_Ext_TransferAddressOwnerZeroReverts() external {
     vm.prank(_owner);
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     _ext.transferAddressOwner(address(0));
   }
 
-  function test_Unit_Ext_InitializeZeroVaultReverts() external {
+  function test_Unit_Ext_HatStyleInitializeReverts() external {
+    uint256[] memory _customHats = new uint256[](0);
+
+    vm.expectRevert(ISquadSponsorCommon.SS_UseAddressInitializer.selector);
+    _ext.initialize(_squadId, address(_paymaster), address(_factory), 0x100, address(0), _customHats);
+  }
+
+  function test_Unit_Ext_InitializeZeroPaymasterReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
 
-    vm.expectRevert(ISquadSponsorExt.SquadSponsorExt_ZeroAddress.selector);
-    SquadSponsorExt(_clone).initialize(_squadId, address(0), address(_factory), _owner);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(0), address(_factory), _owner);
+  }
+
+  function test_Unit_Ext_InitializeZeroAddressOwnerReverts() external {
+    address _clone = Clones.clone(_factory.extImplementation());
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_paymaster), address(_factory), address(0));
+  }
+
+  function test_Unit_Ext_PostInitializeSwitchesToHatEligibility() external {
+    vm.prank(_owner);
+    _ext.setPermittedAddress(_member, true);
+
+    uint256[] memory _customHats = new uint256[](1);
+    _customHats[0] = 0xBEEF;
+
+    vm.prank(_owner);
+    _ext.postInitialize(0x400, address(0), _customHats);
+
+    assertFalse(_ext.isEligible(_member));
+    _mockHatWearer(_member, 0xBEEF, true);
+    assertTrue(_ext.isEligible(_member));
+  }
+
+  function test_Unit_Ext_HatsWiredFalseBeforeWiring() external view {
+    assertFalse(_ext.hatsWired());
+  }
+
+  function test_Unit_Ext_SetPermittedAddressAlreadyWiredReverts() external {
+    vm.store(address(_ext), bytes32(uint256(5)), bytes32(uint256(0x500)));
+
+    vm.prank(_owner);
+    vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
+    _ext.setPermittedAddress(_member, true);
+  }
+
+  function test_Unit_Ext_TransferAddressOwnerAlreadyWiredReverts() external {
+    vm.store(address(_ext), bytes32(uint256(5)), bytes32(uint256(0x501)));
+
+    vm.prank(_owner);
+    vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
+    _ext.transferAddressOwner(_other);
+  }
+
+  function test_Unit_Ext_InitializeZeroFactoryReverts() external {
+    address _clone = Clones.clone(_factory.extImplementation());
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_paymaster), address(0), _owner);
+  }
+
+  function test_Unit_Ext_InitializeZeroPaymasterAndFactoryReverts() external {
+    address _clone = Clones.clone(_factory.extImplementation());
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(0), address(0), _owner);
+  }
+
+  function test_Unit_Ext_NotPermittedBeforeWiring() external view {
+    assertFalse(_ext.isEligible(_member));
   }
 }

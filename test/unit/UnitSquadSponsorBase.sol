@@ -5,7 +5,6 @@ import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
-import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {Test} from 'forge-std/Test.sol';
@@ -16,7 +15,8 @@ import {Test} from 'forge-std/Test.sol';
  * @notice Shared fixture for squad sponsor unit tests.
  */
 abstract contract UnitSquadSponsorBase is Test {
-  address internal constant _HATS = address(uint160(uint256(keccak256('pacto.sponsor.HATS'))));
+  /// @dev Hats Protocol v1 singleton — must match `SquadSponsorBase._HATS`.
+  address internal constant _HATS = 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137;
   address internal constant _ENTRY_POINT = address(uint160(uint256(keccak256('pacto.sponsor.ENTRY_POINT'))));
 
   SquadSponsorFactory internal _factory;
@@ -35,23 +35,25 @@ abstract contract UnitSquadSponsorBase is Test {
       abi.encode(true)
     );
 
-    uint256 nonce = vm.getNonce(address(this));
-    address paymasterAddr = vm.computeCreateAddress(address(this), nonce);
-    address factoryAddr = vm.computeCreateAddress(address(this), nonce + 1);
-
-    _paymaster = new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(factoryAddr));
-    _factory = new SquadSponsorFactory(paymasterAddr, _HATS);
+    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT));
+    _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
   }
 
-  function _createSquad(bytes32 squadId) internal returns (address vault, address ext) {
-    (vault, ext) = _factory.createSquad(squadId);
+  function _createSquadExt(bytes32 squadId) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsorExt(squadId);
   }
 
-  function _createSquadWithDeposit(
+  function _createSquadExtWithDeposit(bytes32 squadId, uint256 depositAmount) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsorExt{value: depositAmount}(squadId);
+  }
+
+  function _createSquadHat(
     bytes32 squadId,
-    uint256 depositAmount
-  ) internal returns (address vault, address ext) {
-    (vault, ext) = _factory.createSquad{value: depositAmount}(squadId);
+    uint256 topHatId,
+    address registry,
+    uint256[] memory customEligibleHats
+  ) internal returns (address sponsor) {
+    sponsor = _factory.createSquadSponsor(squadId, topHatId, registry, customEligibleHats);
   }
 
   function _mockHatsAdmin(address user, uint256 topHatId, bool isAdmin) internal {

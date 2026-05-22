@@ -15,7 +15,7 @@
 This spec is written for an **implementing agent** working in **pacto-squad-sponsor** with no prior chat context. It defines:
 
 - Product and security goals for **collective, squad-scoped gas sponsorship**
-- On-chain architecture (single vault, multi-sponsor pro-rata accounting)
+- On-chain architecture (**one minimal-proxy clone per squad** — pool + eligibility in `SquadSponsorBase`; no separate vault contract)
 - Off-chain relayer integration (Alchemy v1; pluggable later)
 - How sponsorship relates to **pacto-gov** via **`SquadSponsorExt.postInitialize`**
 - **Executable milestones** through testnet and mainnet
@@ -39,7 +39,7 @@ This is intentionally **not** per-user gas abstraction. It is **squad-collective
 | Layer | Repo | Role |
 |--------|------|------|
 | Rules & modules | **pacto-gov** | `Quartermaster`, `MutinyModule`, `TreasuryAuthority`, `SquadAdmin`, **`PactoAdmin`**, `NavePirataFactory`, `NavePirataRegistry` |
-| Gas pools, eligibility modules, **ERC-4337 paymaster** | **pacto-squad-sponsor** | `SquadSponsorVault`, **`PactoSponsorPaymaster`** (ERC-4337), **`SquadSponsorExt`** (address primitive), **`SquadSponsor`** (hats base) |
+| Gas pools, eligibility modules, **ERC-4337 paymaster** | **pacto-squad-sponsor** | **`SquadSponsorFactory`**, **`PactoSponsorPaymaster`** (ERC-4337), **`SquadSponsorExt`** (address primitive), **`SquadSponsor`** (hats) |
 | Transport (bundler / relay) | **Alchemy** (v1) | `eth_sendUserOperation`, Gas Manager → paymaster |
 | UX | **Pacto app** | Keys (Nostr → EVM), UserOps (**ERC-4337**) + **EIP-7702** delegation, squad inbox |
 
@@ -47,12 +47,12 @@ This is intentionally **not** per-user gas abstraction. It is **squad-collective
 
 | Contract | When deployed | Eligibility | 
 |----------|---------------|-------------|
-| **`SquadSponsorExt`** | **Always first** (with vault + paymaster), even if pacto-gov never deploys | **Address-based** — members who shared EVM with squad (app-synced; no Hats) |
-| **`SquadSponsor`** (base) | When **pacto-gov** deploys **or** squad wires a **custom / arbitrary Hats tree** | **Hat-based** — wearers of configured squad hats (e.g. crew + captain for PactoGov) |
+| **`SquadSponsorExt`** | **Typical first path** via `createSquadSponsorExt` | **Address-based** — members who shared EVM with squad (app-synced; no Hats) |
+| **`SquadSponsor`** | **`createSquadSponsor`** when hats known at bootstrap, or hat rules after Ext `postInitialize` | **Hat-based** — wearers of configured squad hats (e.g. crew + captain for PactoGov) |
 
 **`SquadSponsorExt` is deployed before pacto-gov.** It is the primitive expansion for address access control (no Hats, no plugin infra). **`SquadSponsor` base** is the Hats path — deployed with gov or a custom tree.
 
-**Wiring:** When hats become available, **`SquadSponsorExt.postInitialize`** connects the pre-deployed Ext to **`SquadSponsor`** base (same backwards-compatible pattern as `SquadAdminExt.postInitialize`). Hat eligibility **overrides** address entries for that squad — including any prior custom hat setup.
+**Wiring:** When hats become available, **`SquadSponsorExt.postInitialize`** wires hat eligibility **on the same clone** (inherits `SquadSponsor`; `topHatId != 0` ⇒ hat rules override address list). Alternatively, deploy a hat-first **`SquadSponsor`** clone via `createSquadSponsor` when hats are known upfront.
 
 **Callers of `postInitialize`:** `NavePirataFactory`, contract **owner**, or **Hats tree owner** — match `SquadAdminExt` auth in pacto-gov (see [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md)).
 
@@ -115,7 +115,7 @@ flowchart LR
 | **Gnosis Safe** (pause-captain, treasury) | Safe address with **4337 module enabled** | **ERC-4337** UserOp with **`userOp.sender` = Safe** + paymaster (§5.2) |
 | **Contract wallet** (other smart accounts) | `code.length > 0` (not delegation-only) | **ERC-4337** UserOp; resolve signer per account implementation |
 
-**v1 supports both EOAs and contract wallets.** Paymaster resolves the **beneficiary member** from `userOp.sender` (see §4.2): EOA directly; smart account → owner/signer per account implementation; 7702-delegated EOA treated as EOA with delegation stub.
+**v1 supports both EOAs and contract wallets.** Paymaster resolves the **beneficiary member** from `paymasterAndData` (see §4.2): EOA ⇒ `sender == member` enforced on-chain; smart account ⇒ `member` in payload (Safe signer → `member` mapping **deferred**). **EIP-7702** is planned for EOA transport (app + bundler); paymaster has no 7702 allowlist yet — delegated EOAs currently hit the smart-account path (`code.length > 0`).
 
 Use one audited ERC-4337-compatible implementation per chain for 7702 delegation target.
 
@@ -131,7 +131,7 @@ References:
 
 | # | Decision |
 |---|----------|
-| D1 | **Per-squad vault clone** (minimal proxy) — each squad’s ETH isolated; reduces chain-wide honeypot vs one vault holding all squads |
+| D1 | **One sponsor clone per squad** (minimal proxy) — pool + eligibility in `SquadSponsorBase`; each squad’s ETH isolated |
 | D2 | **ETH only** — no ERC-20 gas payment in v1 |
 | D3 | **Multi-sponsor pro-rata** accounting per squad clone (deposit shares; withdraw proportional to remaining pool) |
 | D4 | Depositors may **withdraw** unspent share; gas spend reduces everyone’s withdrawable amount proportionally — **owner cannot withdraw others’ deposits** |
@@ -140,7 +140,7 @@ References:
 | D7 | **Not upgradeable** — new policy = new paymaster + new implementation if ever needed |
 | D8 | **Deployment-driven eligibility** — Ext (address) until hat base wired via `postInitialize`; no admin mode toggle |
 | D9 | Relayer v1: **Alchemy** bundler + Gas Manager → **ERC-4337** paymaster |
-| D10 | **Per-squad clones:** `SquadSponsorExt` (+ vault) at squad bootstrap; **`SquadSponsor`** hat clone at wiring (mirrors `SquadAdminExt` / `SquadAdmin`) |
+| D10 | **One clone per squad:** `SquadSponsorExt` (address-first) or `SquadSponsor` (hat-first); Ext `postInitialize` wires hats on **same** clone |
 | D11 | **Hat wiring overrides** addresses (and prior custom hat config) — one-way `postInitialize` |
 | D12 | **v1 eligibility paths:** address (Ext), PactoGov hats, custom Hats tree (same `postInitialize` pattern as **`PactoAdmin`**) |
 | D13 | **EOA + contract wallets** via 7702 + 4337; **Gnosis Safe** as **ERC-4337 smart account** (Safe 4337 plugin — §5.2) |
@@ -164,9 +164,7 @@ flowchart TB
 
   subgraph sponsor [pacto-squad-sponsor]
     Factory[SquadSponsorFactory]
-    VaultClone[Vault clone per squad]
-    ExtClone[Ext clone per squad]
-    BaseClone[SquadSponsor clone per squad]
+    SponsorClone[Sponsor clone per squad Ext or Sponsor]
     PM[PactoSponsorPaymaster ERC-4337]
   end
 
@@ -183,19 +181,15 @@ flowchart TB
   UX --> Keys
   Keys -->|sign UserOp / 7702 auth| Bundler
   Bundler --> PM
-  Factory -->|first deposit| VaultClone
-  Factory --> ExtClone
-  PM -->|spendGas| VaultClone
-  PM --> ExtClone
-  PM --> BaseClone
-  Factory -->|postInitialize wires| BaseClone
-  ExtClone -->|hats wired| BaseClone
+  Factory -->|createSquadSponsorExt / createSquadSponsor| SponsorClone
+  PM -->|spendGas| SponsorClone
+  Factory -->|postInitialize wires hats on Ext clone| SponsorClone
   PM -->|Safe 4337 UserOp| Mods
 ```
 
 **Execution invariant:** For hat-gated functions, **`msg.sender` must be the member EOA** (or valid contract wearer). The paymaster **never** calls `crewVote` as itself to “proxy” a vote.
 
-**Policy invariant:** If `SquadSponsorExt.isHatsWired(squadId)` → `SquadSponsor.isEligible`; else → `SquadSponsorExt.isEligible`. Paymaster is **ERC-4337**; transport via bundler (§6.1). See [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) for factory wiring.
+**Policy invariant:** Eligibility is evaluated on the **registered sponsor clone** for `squadId` — `SquadSponsorExt` uses address list until `topHatId != 0`, then hat rules on the same clone. Paymaster is **ERC-4337**; transport via bundler (§6.1). See [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) for factory wiring.
 
 ---
 
@@ -203,134 +197,101 @@ flowchart TB
 
 ### 4.0 `SquadSponsorFactory` + per-squad clones
 
-**Problem:** A single chain-wide vault holding all squads’ ETH is a larger honeypot. **v1 uses minimal-proxy clones per squad** (same pattern as gov module clones).
+**Problem:** A single chain-wide pool holding all squads’ ETH is a larger honeypot. **v1 uses one minimal-proxy clone per squad** (pool + eligibility in `SquadSponsorBase`).
 
-**`SquadSponsorFactory`** (chain singleton):
+**`SquadSponsorFactory`** (chain singleton, CREATE2-deployed with `PactoSponsorPaymaster`):
 
-- `createSquad(bytes32 squadId)` → deploys **`SquadSponsorVault`** clone + **`SquadSponsorExt`** clone, wired together.
-- Called on **first deposit** for a `squadId` (or explicit app bootstrap tx).
-- **`SquadSponsor`** hat clone created later when hats wire (gov or custom tree) via `postInitialize` path.
-- Registry: `squadId` → `{ vault, ext, base?, topHatId? }`.
+- `createSquadSponsorExt(bytes32 squadId)` → **Ext clone**; `msg.sender` → `addressOwner`; optional ETH → pro-rata deposit.
+- `createSquadSponsor(bytes32 squadId, topHatId, registry, customEligibleHats)` → **hat-first Sponsor clone** when hats are known at bootstrap.
+- Registry: `squadId` → `{ sponsor, variant, topHatId }`; `squadIdBySponsor` reverse lookup.
+- `hats()` returns `SquadSponsorConstants.HATS_ADDRESS` (not a constructor arg).
+- Immutable `PAYMASTER` wired into every clone at `initialize`.
 
-Paymaster is still a **chain singleton**; `paymasterAndData` includes the squad’s **vault clone address** (and `squadId` for sanity).
+Paymaster is a **chain singleton**; `paymasterAndData` includes `squadId`, **sponsor clone address**, and **member** (§4.2).
 
-### 4.1 `SquadSponsorVault` (implementation + per-squad clone)
+### 4.1 `SquadSponsorBase` (abstract — pool in every clone)
 
-Each clone holds **one squad’s ETH only**. No cross-squad balance mapping inside a clone.
+Each clone holds **one squad’s ETH only** (`squadId`, `paymaster`, `factory` set at init).
 
 **Responsibilities (per clone):**
 
-1. Hold ETH for **this squad** only (`bytes32 squadId` immutable in `initialize`).
-2. Track **sponsor shares** (pro-rata).
+1. Hold ETH for **this squad** only.
+2. Track **sponsor shares** (pro-rata `deposit` / `withdraw`).
 3. Expose `spendGas` **only** to the wired paymaster.
-4. `linkTopHat` — **only** from this squad’s **`SquadSponsorExt` clone** `postInitialize`.
-5. Orphan receive handling / `saviourWithdraw` per implementation policy.
+4. Virtual `_isEligible(member)` — implemented by `SquadSponsorExt` or `SquadSponsor`.
 
-**First deposit / early bird:**
+**First deposit / early bird (Ext path):**
 
-```solidity
-function deposit() external payable;  // clone already bound to squadId
-```
+- On **`createSquadSponsorExt`**, **`msg.sender` becomes `addressOwner`** on the Ext clone (D16).
+- Optional `msg.value` on create → `depositFor(msg.sender)` via factory helper.
 
-- On **`Factory.createSquad`**, **`msg.sender` (first depositor) becomes `addressOwner`** on the paired Ext clone (D16).
-- Subsequent depositors only receive `sponsorShares`; they do **not** become owner automatically.
-
-**Accounting (pro-rata)** — same formulas as before, scoped to single clone (no `squadId` key on mappings inside clone):
+**Accounting (pro-rata)** — scoped to single clone:
 
 ```
-On deposit(amount):
-  mint shares pro-rata → credit sponsorShares[msg.sender]
+On deposit / depositFor:
+  mint shares pro-rata → credit sponsorShares[sponsor]
 
 On withdraw():
   burn shares pro-rata → transfer ETH to msg.sender
 
-On spendGas(amount):  // onlyPaymaster
-  balance -= amount
+On spendGas(amount):  // only paymaster
+  transfer amount ETH to paymaster
 ```
 
 ### 4.2 `PactoSponsorPaymaster` (ERC-4337 verifying paymaster)
 
-**Non-upgradeable.** Immutable constructor args:
+**Non-upgradeable.** Immutable constructor args (as implemented):
 
 - `IEntryPoint entryPoint`
-- `SquadSponsorFactory factory` (resolve squad clones)
-- `address hats` (Hats Protocol)
-- Optional: `address walletImplementation` (7702 delegate allowlist)
+- `SquadSponsorFactory factory` (anti-spoof registry lookup)
 
-Per-UserOp **`paymasterAndData`** includes: `vaultClone`, `extClone`, optional `baseClone`, `squadId` (checksum).
+Hats is **not** a paymaster constructor arg — eligibility reads Hats via sponsor clone bytecode (`SquadSponsorConstants`).
 
-**`validatePaymasterUserOp` (high level):**
+Per-UserOp **`paymasterAndData`** (after standard 52-byte ERC-4337 header):
 
-1. Decode squad clone addresses from `paymasterAndData`.
-2. Check `vaultClone.balance >= maxCost` (headroom e.g. 115%).
-3. Resolve **member** for eligibility:
-   - **EOA / 7702 EOA:** `userOp.sender` (or delegated EOA)
-   - **Safe (path A):** `userOp.sender` is the Safe; validate UserOp signatures against Safe owners/threshold via 4337 module; map to **signing owner** for eligibility (must be hat wearer / permitted address)
-   - **Other smart accounts:** owner/signer per account `validateUserOp`
-4. **Eligibility:** if `extClone.isHatsWired()` → `baseClone.isEligible(member)`; else → `extClone.isEligible(member)`.
-5. Sanity checks — reject drain vectors; allow deploy txs; allow Safe **`execTransaction`** calldata when sender is Safe 4337 account (§5.2).
-6. Gas limits per call class (deploy / Safe exec / default).
-7. `postOp` → `vaultClone.spendGas(actualGasCost)`.
+```solidity
+abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
+// version = PAYMASTER_DATA_VERSION (1)
+```
+
+**`validatePaymasterUserOp` (as implemented):**
+
+1. Decode `squadId`, `sponsor`, `member` from `paymasterAndData`.
+2. **`_validateRegistry`** — `factory.squads(squadId).sponsor == sponsor`.
+3. Check `sponsor.balance >= maxCost × 115%` headroom.
+4. **Member binding:** if `userOp.sender` is EOA (`code.length == 0`), require `sender == member`; smart accounts skip binding (Safe signer mapping **deferred**).
+5. **`sponsor.isEligible(member)`** — Ext address list or hat rules on same clone.
+6. `postOp` (success only) → `sponsor.spendGas(actualGasCost)`.
+
+**Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps; optional `walletImplementation` (7702 delegate allowlist).
 
 ### 4.3 `SquadSponsorExt` + `SquadSponsor` clones (mirrors `SquadAdminExt` + `SquadAdmin`)
 
-**Per-squad minimal-proxy clones** created by **`SquadSponsorFactory`**. Ext + vault clone at first deposit; **`SquadSponsor`** hat clone at hat wiring.
+**One minimal-proxy clone per squad** — pool and eligibility live on the same contract (`SquadSponsorBase`). `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** address.
 
-**Custom Hats tree (no full PactoGov):** same **`postInitialize`** pattern as **`PactoAdmin`** / `SquadAdminExt` in pacto-gov — factory or owner or Hats tree owner wires hat base to pre-deployed Ext clone.
+**Custom Hats tree (no full PactoGov):** same **`postInitialize`** auth pattern as `SquadAdminExt` in pacto-gov — factory, `addressOwner`, or Hats tree owner.
 
 #### 4.3.1 `SquadSponsorExt` clone — address primitive
 
-One clone per squad. Immutable `squadId`, pointer to paired vault clone.
+One clone per squad; inherits `SquadSponsor` (pool + hats on same address).
 
-```solidity
-contract SquadSponsorExt is ISquadSponsorEligibility {
-  bytes32 public immutable squadId;
-  SquadSponsorVault public immutable vault;
-  address public addressOwner;
-  bool public hatsWired;
-  address public squadSponsorBase;  // hat clone once wired
+**Implemented surface (see `SquadSponsorExt.sol`):**
 
-  mapping(address => bool) public permittedAddress;
-
-  function setPermittedAddress(address member, bool permitted) external onlyAddressOwner { ... }
-
-  function postInitialize(uint256 topHatId, address _squadSponsorBase)
-    external onlyFactoryOrOwnerOrHatsOwner
-  {
-    require(!hatsWired);
-    hatsWired = true;
-    squadSponsorBase = _squadSponsorBase;
-    vault.linkTopHat(topHatId);
-    emit HatsSponsorshipWired(squadId, topHatId, _squadSponsorBase);
-  }
-
-  function isEligible(address member) external view returns (bool) {
-    return permittedAddress[member];
-  }
-}
-```
+- `initialize(squadId, paymaster, factory, addressOwner)`
+- `setPermittedAddress` / `transferAddressOwner` — while `topHatId == 0`
+- `postInitialize(topHatId, registry, customHats)` — `HatWireAuth`; calls `_wireHats` on **this** clone; clears `addressOwner`
+- `_isEligible`: `permittedAddress` pre-wiring; hat rules post-wiring (`super._isEligible`)
 
 **Address updates:** App squad inbox → **`addressOwner`** calls **`setPermittedAddress`**. Not duplicated in pacto-gov.
 
 #### 4.3.2 `SquadSponsor` clone — hats (PactoGov or custom tree)
 
-```solidity
-contract SquadSponsor is ISquadSponsorEligibility {
-  bytes32 public immutable squadId;
-  IHats public immutable hats;
-  INavePirataRegistry public immutable registry;  // optional for custom-tree-only
-  uint256 public topHatId;
-  uint256[] public customEligibleHats;
+Hat-first path via `createSquadSponsor`, or inherited by Ext after `postInitialize`.
 
-  function isEligible(address member) external view returns (bool) {
-    // PactoGov: crew + captain from registry.deployment(topHatId)
-    // Custom tree: any hat in customEligibleHats[]
-    ...
-  }
-}
-```
+**Implemented surface (see `SquadSponsor.sol`):**
 
-After **`postInitialize`**, paymaster uses **`SquadSponsor.isEligible`** — overrides Ext address list.
+- `initialize(squadId, paymaster, factory, topHatId, registry, customEligibleHats)`
+- `_isEligible`: registry crew + captain hats when `registry != address(0)`; plus `customEligibleHats`
 
 #### 4.3.3 `addressOwner` role (early bird)
 
@@ -350,7 +311,7 @@ After **`postInitialize`**, paymaster uses **`SquadSponsor.isEligible`** — ove
 |-----------|-----|
 | Withdraw others’ deposits | **`sponsorShares`** mapping — only own share withdrawable |
 | Spend pool gas directly | Only paymaster deducts via validated UserOps |
-| Change pro-rata accounting | Vault logic is fixed |
+| Change pro-rata accounting | Base logic is fixed |
 | Override hat eligibility after `postInitialize` | Hat clone takes over; address list ignored for gas |
 
 **So yes:** depositors are protected by **`sponsorShares`**; **`addressOwner`** is purely **eligibility admin** for the address primitive + **`postInitialize` backup** — not a pool custodian.
@@ -373,11 +334,9 @@ After **`postInitialize`**, paymaster uses **`SquadSponsor.isEligible`** — ove
 
 | Artifact | Scope | Eligibility |
 |----------|-------|-------------|
-| `SquadSponsorFactory` | Chain singleton | Creates clones |
-| `SquadSponsorVault` clone | Per squad | Holds **this squad’s ETH only** |
-| `SquadSponsorExt` clone | Per squad | Address list |
-| `SquadSponsor` clone | Per squad (when wired) | Hats |
-| `PactoSponsorPaymaster` | Chain singleton | ERC-4337 |
+| `SquadSponsorFactory` | Chain singleton | Creates clones; CREATE2 deploy with paymaster |
+| Sponsor clone (`Ext` or `Sponsor`) | Per squad | Pool + eligibility (address and/or hats) |
+| `PactoSponsorPaymaster` | Chain singleton | ERC-4337 validation + `spendGas` billing |
 
 ### 4.5 Optional: `SquadAddressResolver` library (pure / internal)
 
@@ -428,7 +387,7 @@ These are the governance surfaces the Pacto app exposes today. Sponsorship follo
 4. Bundler → **`PactoSponsorPaymaster`** validates:
    - At least one validated signer is **eligible** (hat wearer or Ext permitted address)
    - Inner call targets are app-allowed (gov modules, treasury, etc.)
-5. `postOp` → squad vault clone pays gas.
+5. `postOp` → sponsor clone `spendGas`.
 
 **Also sponsor:** module paths (QM/MM/TA) where **`msg.sender`** is member EOA when app uses direct module calls instead of Safe exec.
 
@@ -454,7 +413,7 @@ Target contracts enforce `HatGated` via `IHats.isWearerOfHat(msg.sender, hatId)`
    - **Low balance:** app-side alert only — no on-chain threshold
    - EOA: 7702 delegation if needed, then ERC-4337 UserOp + paymaster
    - Contract wallet / **Safe (4337 module):** ERC-4337 UserOp with `sender` = account / Safe (§5.2)
-   - Sign → bundler → paymaster validates → vault pays gas
+   - Sign → bundler → paymaster validates → sponsor clone pays gas via `spendGas`
 
 Docs:
 
@@ -468,14 +427,12 @@ Per squad per chain:
 ```ts
 type SquadSponsorState = {
   squadId: `0x${string}`;
-  hatsWired: boolean;           // SquadSponsorExt.postInitialize done
+  sponsorAddress: Address;      // registered clone (Ext or Sponsor variant)
+  hatsWired: boolean;           // Ext: topHatId != 0
   topHatId?: bigint;
-  eligibilitySource: 'ADDRESS' | 'HATS';  // derived from deployment
+  eligibilitySource: 'ADDRESS' | 'HATS';
   permittedMembers?: Address[]; // Ext only, when !hatsWired
-  vaultAddress: Address;
-  paymasterAddress: Address;    // ERC-4337
-  squadSponsorExtAddress: Address;
-  squadSponsorBaseAddress?: Address;
+  paymasterAddress: Address;
   balanceWei: bigint;
   sponsors: { address: Address; shares: bigint; withdrawableWei: bigint }[];
 };
@@ -507,15 +464,15 @@ Optional: deep link for sponsor to `deposit(squadId)` with suggested amount.
 | Unauthorized pool spend | `isEligible` via Ext or Base on every ERC-4337 UserOp |
 | Pre-gov address spam | `setPermittedAddress` gated by `addressOwner`; app gates inbox share |
 | Unauthorized action (deploy, admin, etc.) | **`PactoAdmin`** + target contracts — sponsor does not enforce; tx reverts before gas matters |
-| Paymaster drains vault on arbitrary calls | Spend permission + app relay policy; reject drain patterns; optional registry target check when linked |
+| Paymaster drains squad pool on arbitrary calls | Spend permission + app relay policy; reject drain patterns (deferred on-chain allowlists) |
 | Reentrancy from spend | CEI; `spendGas` nonReentrant |
 | Sponsor share inflation | `mulDiv` on deposit; no donation attack without ETH |
 | Unmapped ETH lock | `saviourWithdraw` + explicit `unallocated` accounting |
-| Malicious 7702 implementation | Allowlist single `walletImplementation`; app must not sign arbitrary delegation |
+| Malicious 7702 implementation | Planned: allowlist `walletImplementation` in paymaster; app must not sign arbitrary delegation (**not implemented**) |
 | Cross-squad drain | `squadId` in paymaster data must match linked `topHatId`; no spend without balance on that id |
 | Upgrade clone swap | Read `upgradeAt` on every validation (cache in indexer off-chain, verify on-chain) |
 
-**Audits:** Before mainnet, internal review + external audit recommended for paymaster + vault.
+**Audits:** Before mainnet, internal review + external audit recommended for paymaster + sponsor clones.
 
 ---
 
@@ -523,7 +480,7 @@ Optional: deep link for sponsor to `deposit(squadId)` with suggested amount.
 
 See **[`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md)** for required pacto-gov PRs.
 
-Summary: **`SquadSponsorExt` pre-deployed** → squad uses address mode → factory gov deploy → **`postInitialize`** wires **`SquadSponsor`** base → hat eligibility overrides addresses.
+Summary: **`SquadSponsorExt` pre-deployed** → squad uses address mode → gov or manual **`postInitialize`** wires hats on **same clone** → hat eligibility overrides addresses.
 
 ---
 
@@ -535,27 +492,22 @@ pacto-squad-sponsor/
 │   ├── TECH_SPEC.md
 │   └── PACTO_GOV_FOLLOWUPS.md
 ├── src/
-│   ├── interfaces/
-│   │   ├── ISquadSponsorVault.sol
-│   │   └── IPactoSponsorPaymaster.sol
+│   ├── interfaces/          # ISquadSponsor*, IPactoSponsorPaymaster, …
 │   └── contracts/
+│       ├── abstracts/SquadSponsorBase.sol
 │       ├── SquadSponsorFactory.sol
-│       ├── SquadSponsorVault.sol
 │       ├── SquadSponsor.sol
 │       ├── SquadSponsorExt.sol
 │       ├── PactoSponsorPaymaster.sol
-│       └── libraries/
-│           └── SquadAddressResolver.sol
+│       └── utils/
 ├── script/
-│   ├── Constants.sol         # public: EntryPoint, Hats, deployed addresses per chain
-│   ├── Deploy.s.sol
-│   └── WirePaymaster.s.sol
+│   ├── Constants.sol
+│   ├── SponsorDeploy.sol    # shared deploy (script + IntegrationBase)
+│   ├── SponsorDeployLib.sol # CREATE2 factory ↔ paymaster
+│   └── Deploy.sol
 ├── test/
-│   ├── unit/
-│   │   ├── SquadSponsorVault.t.sol
-│   │   └── PactoGovPolicy.t.sol
-│   └── integration/
-│       └── SponsorWithGovFork.t.sol   # fork **mainnet** + pacto-gov addresses
+│   ├── unit/                # `--match-contract Unit`
+│   └── integration/         # `IntegrationBase`, `E2E*` (`--match-contract E2E`)
 ├── remappings.txt             # pacto-gov interfaces as submodule @pacto-gov/...
 └── deployments/<chainId>/sponsor.json
 ```
@@ -578,18 +530,19 @@ Remove boilerplate `Greeter` when implementing.
 - ✅ Add `pacto-gov` dependency via `pnpm` + `remappings.txt` (read-only interfaces; no `lib/` submodule).
 - ✅ Add `script/Constants.sol` for public chain + deployment addresses; `.env.example` for **private keys/RPC only**
 
-### Phase 1 — Factory + vault + Ext clones
+### Phase 1 — Factory + sponsor clones
 
-- ✅ `SquadSponsorFactory`: `createSquad`, first-depositor → `addressOwner`, vault + Ext clones.
-- ✅ `SquadSponsorVault` implementation: pro-rata deposit/withdraw, `spendGas`, `linkTopHat`.
-- ✅ `SquadSponsorExt` clone: `setPermittedAddress`, `transferAddressOwner`, `postInitialize`.
+- ✅ `SquadSponsorFactory`: `createSquadSponsorExt`, `createSquadSponsor`; first caller → `addressOwner` on Ext; registry + master copies.
+- ✅ `SquadSponsorBase`: pro-rata deposit/withdraw, `spendGas`, shared init.
+- ✅ `SquadSponsorExt`: `setPermittedAddress`, `transferAddressOwner`, `postInitialize` (hats on same clone).
 
-### Phase 2 — SquadSponsor hat clone + ERC-4337 paymaster
+### Phase 2 — SquadSponsor hat path + ERC-4337 paymaster
 
-- ✅ `SquadSponsor` hat clone: PactoGov (crew + captain) + custom eligible hat list.
-- ✅ `PactoSponsorPaymaster`: eligibility routing (Ext vs Base); **`paymasterAndData`** decode (§10.1); EOA member binding (Safe 4337 signer path deferred).
-- ✅ Unit tests: vault isolation; address → `postInitialize` → hats; paymaster validation (28 tests passing).
-- [ ] **Integration / e2e:** fork **mainnet** via `IntegrationBase._forkMainnet()` (D19).
+- ✅ `SquadSponsor`: PactoGov (crew + captain) + custom eligible hat list.
+- ✅ `PactoSponsorPaymaster`: registry check, pool headroom, `paymasterAndData` v1 decode, EOA `sender == member` binding.
+- ✅ Unit tests: pool accounting; Ext → `postInitialize` → hats; paymaster validation (**77** unit tests).
+- ✅ **Integration scaffold:** `IntegrationBase` + `SponsorDeploy` (same CREATE2 path as `script/Deploy.sol`); `E2E*` smoke on mainnet fork (`DEFAULT_MAINNET_FORK_BLOCK = 22_900_000`).
+- [ ] **Integration / e2e:** sponsored UserOp through EntryPoint on fork; Safe Path A signer validation.
 
 ### Phase 3 — Mainnet + Arbitrum
 
@@ -605,7 +558,7 @@ Remove boilerplate `Greeter` when implementing.
 
 ### 10.1 Implementation appendix (for executing agent)
 
-**Confidence:** Phases **0–2** core contracts and unit tests are complete in this repo. Phase 4 needs pacto-gov PR. Deploy scripts exist but are out of scope until you choose to broadcast.
+**Confidence:** Phases **0–2** core contracts and unit tests are complete. Deploy scripts (`SponsorDeploy`, CREATE2 factory ↔ paymaster) ready; broadcast is Phase 3. Phase 4 needs pacto-gov PR.
 
 #### Dependencies (Phase 0)
 
@@ -621,20 +574,20 @@ Remappings to add: `@openzeppelin/`, `@account-abstraction/`, `@pacto-gov/`.
 #### Clone pattern
 
 - Use OpenZeppelin **`Clones` (EIP-1167)** minimal proxies.
-- **`SquadSponsorFactory`** holds implementation addresses; `createSquad(bytes32 squadId)` clones **Vault + Ext**, initializes with `squadId`, sets **`addressOwner = msg.sender`** (first depositor path) or separate `createSquad` then `deposit` — prefer **create + deposit in one tx** from app/factory helper.
-- **`SquadSponsor`** hat implementation cloned once per squad inside **`postInitialize`**.
+- **`SquadSponsorFactory`** holds `sponsorImplementation` + `extImplementation`; **`createSquadSponsorExt`** or **`createSquadSponsor`** clones one sponsor per `squadId`; optional ETH on create → `depositFor`.
+- Ext **`postInitialize`** wires hats on the **same** clone (no second deploy).
 
-#### `paymasterAndData` layout (v1)
+#### `paymasterAndData` layout (v1 — as implemented)
 
 ```
-byte version = 1;
+// After ERC-4337 paymaster header (52 bytes):
+uint8 version = 1;
 bytes32 squadId;
-address vaultClone;
-address extClone;
-address baseClone;  // zero if !hatsWired
+address sponsor;   // registered clone for squadId
+address member;    // eligibility subject
 ```
 
-Paymaster validates clone addresses against **`SquadSponsorFactory`** registry for `squadId` (anti-spoof).
+Paymaster validates `sponsor` against **`SquadSponsorFactory.squads(squadId)`** (anti-spoof).
 
 #### Chain constants (verify before mainnet deploy)
 
@@ -652,7 +605,7 @@ Canonical source: **`script/Constants.sol`** (`Constants.getConfig(chainId)`). D
 
 | Private (`.env` only) | Public (`script/Constants.sol`) |
 |------------------------|----------------------------------|
-| `MAINNET_RPC`, `SEPOLIA_RPC`, `ARBITRUM_RPC` | `entryPoint`, `hats` per chain |
+| `MAINNET_RPC`, `SEPOLIA_RPC`, `ARBITRUM_RPC` | `entryPoint`, `HATS_PROTOCOL_V1`, `DEFAULT_MAINNET_FORK_BLOCK` |
 | `ETHERSCAN_API_KEY`, `ALCHEMY_API_KEY` | `navePirataRegistry`, `safe4337Module` |
 | `*_DEPLOYER_NAME` (keystore labels) | `squadSponsorFactory`, `paymaster` after deploy |
 | | `mainnetForkBlock` for integration tests |
@@ -683,8 +636,8 @@ Private keys and RPC URLs only — see repo `.env.example`.
 
 | Test type | Environment | Requirement |
 |-----------|-------------|-------------|
-| **Unit** | Local (no fork) | 100% path coverage on vault accounting; resolver + drain-vector rejection |
-| **Integration / e2e** | **Mainnet fork** (`MAINNET_RPC`, pinned block in `IntegrationBase`) | Real Hats, Safe, registry/pacto-gov addresses; sponsored UserOp or `vm.prank` EntryPoint |
+| **Unit** | Local (no fork) | Pool accounting, eligibility, paymaster validation (`--match-contract Unit`) |
+| **Integration / e2e** | **Mainnet fork** (`MAINNET_RPC`, `IntegrationBase`, block `22_900_000`) | Deploy smoke + Ext fixtures; **TODO:** full UserOp through EntryPoint |
 | **Fuzz** | Local | deposit/withdraw/spend sequences preserve `sum(withdrawable) <= balance` |
 | **Gas** | Local | Cap tables enforced — oversized UserOp rejected |
 | **Frontend live** | **Sepolia deploy** (Phase 3) | App + Alchemy bundler against deployed contracts — **not** Foundry fork tests |
@@ -700,7 +653,7 @@ CI integration job uses `MAINNET_RPC` secret for fork tests. `SEPOLIA_RPC` is fo
 | Q1 | `postInitialize` auth | Factory, **`addressOwner`**, or Hats owner — match `SquadAdminExt` |
 | Q2 | `addressOwner` bootstrap | **First depositor** on `createSquad` (D16) |
 | Q3 | Custom Hats without PactoGov | **`postInitialize`** — same norm as **`PactoAdmin`** (locked) |
-| Q4 | Per-squad vault clone | **Yes** — honeypot isolation (D1) |
+| Q4 | Per-squad clone isolation | **Yes** — one sponsor clone per squad (D1) |
 | Q5 | `addressOwner` transfer | **Transferable** by current owner (D17) |
 | Q6 | Safe sponsorship | **Path A locked** — Safe as ERC-4337 smart account (D18) |
 | Q7 | Optional address revoke | Optional — not critical v1 |

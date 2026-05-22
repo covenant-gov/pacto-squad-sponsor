@@ -1,27 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISquadSponsorEligibility} from 'interfaces/ISquadSponsorEligibility.sol';
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 
 /**
  * @title ISquadSponsor
  * @author Pacto
- * @notice Per-squad hat-based gas eligibility (PactoGov registry path or custom hat list).
+ * @notice Per-squad sponsor clone with hat-based gas eligibility (PactoGov registry path or custom hat list).
  */
-interface ISquadSponsor is ISquadSponsorEligibility {
+interface ISquadSponsor is ISquadSponsorBase {
   /*///////////////////////////////////////////////////////////////
                             INITIALIZER
   //////////////////////////////////////////////////////////////*/
-
   /**
    * @notice One-shot initializer for an EIP-1167 hat clone.
    * @param squadId Squad identifier bound to this clone.
+   * @param paymaster Chain paymaster authorized to call `spendGas`.
+   * @param factory SquadSponsorFactory address.
    * @param topHatId Linked Hats tree top hat id.
    * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
    * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
    */
   function initialize(
     bytes32 squadId,
+    address paymaster,
+    address factory,
     uint256 topHatId,
     address registry,
     uint256[] calldata customEligibleHats
@@ -30,13 +33,6 @@ interface ISquadSponsor is ISquadSponsorEligibility {
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
-
-  /**
-   * @notice Squad identifier for this clone.
-   * @return squadId Bound squad id.
-   */
-  function squadId() external view returns (bytes32 squadId);
-
   /**
    * @notice Linked top hat id for registry lookups.
    * @return topHatId Top hat id.
