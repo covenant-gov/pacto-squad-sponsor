@@ -8,7 +8,6 @@ concurrency:
 
 env:
   ARBITRUM_RPC: ${{ secrets.ARBITRUM_RPC }}
-  MAINNET_RPC: ${{ secrets.MAINNET_RPC }}
   SEPOLIA_RPC: ${{ secrets.SEPOLIA_RPC }}
 
 jobs:
@@ -29,12 +28,22 @@ jobs:
   integration-tests:
     name: Run Integration Tests
     runs-on: ubuntu-latest
+    environment: e2e
+    env:
+      MAINNET_RPC: ${{ secrets.MAINNET_RPC || vars.MAINNET_RPC }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v6
 
       - name: install-tools
         uses: ./.github/workflows/install-tools
+
+      - name: Require mainnet RPC for fork tests
+        run: |
+          if [ -z "${MAINNET_RPC}" ]; then
+            echo "::error::MAINNET_RPC is not set. Add repository secret MAINNET_RPC or e2e environment variable MAINNET_RPC."
+            exit 1
+          fi
 
       - name: Run tests
         run: pnpm test:integration
