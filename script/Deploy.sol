@@ -10,12 +10,13 @@ contract Deploy is SponsorDeploy {
     _config = Constants.getConfig(block.chainid);
 
     vm.startBroadcast();
-    _deployFullSystem(_config.entryPoint, _deploySaltFactory());
+    address deployer = _broadcastDeployer();
+    _deployFullSystem(_config.entryPoint, _deploySaltFactory(), deployer);
     vm.stopBroadcast();
 
     _logDeployment();
     _writeFullSystemJson(
-      _config.entryPoint, _config.navePirataRegistry, address(_factory), address(_paymaster), _broadcastDeployer()
+      _config.entryPoint, _config.navePirataRegistry, address(_factory), address(_paymaster), deployer
     );
   }
 }

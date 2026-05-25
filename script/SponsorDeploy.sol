@@ -17,7 +17,8 @@ import {console} from 'forge-std/console.sol';
  * @author Pacto
  * @notice Shared CREATE2 deploy routine for `SquadSponsorFactory` (paymaster deployed in factory constructor).
  * @dev `forge script` entrypoints inherit this; integration tests inherit `IntegrationBase` for the same deploy path.
- *      CREATE2 deployer is always `address(this)`. Paymaster address = first CREATE child of the factory (`nonce` 1).
+ *      CREATE2 deployer is the broadcast sender (`vm.readCallers()` in scripts; test contract in integration tests).
+ *      Paymaster address = first CREATE child of the factory (`nonce` 1).
  */
 abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   struct DeployAddresses {
@@ -36,10 +37,9 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   }
 
   /// @notice Full chain bootstrap: CREATE2 factory; paymaster is deployed inside the factory constructor.
-  function _deployFullSystem(address entryPoint, bytes32 saltFactory) internal virtual {
-    address _deployer = address(this);
+  function _deployFullSystem(address entryPoint, bytes32 saltFactory, address deployer) internal virtual {
     bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint);
-    address _predictedFactory = vm.computeCreate2Address(saltFactory, _initCodeHash, _deployer);
+    address _predictedFactory = vm.computeCreate2Address(saltFactory, _initCodeHash, deployer);
     address _predictedPaymaster = vm.computeCreateAddress(_predictedFactory, 1);
 
     _factory = new SquadSponsorFactory{salt: saltFactory}(IEntryPoint(entryPoint));

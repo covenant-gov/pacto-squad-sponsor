@@ -73,7 +73,7 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
   function setUp() public virtual {
     _requireEthereumMainnetFork();
     _config = Constants.getConfig(block.chainid);
-    _deployFullSystem(_config.entryPoint, _deploySaltFactory());
+    _deployFullSystem(_config.entryPoint, _deploySaltFactory(), address(this));
     _stranger = makeAddr('e2eStranger');
     _fund(_stranger, 1 ether);
   }
