@@ -45,7 +45,7 @@
     "@account-abstraction/contracts": "0.7.0",
     "@openzeppelin/contracts": "5.1.0",
     "hats-core": "github:Hats-Protocol/hats-protocol",
-    "pacto-gov": "file:../pacto-gov"
+    "pacto-gov": "github:covenant-gov/pacto-gov"
   },
   "devDependencies": {
     "@commitlint/cli": "19.3.0",
