@@ -63,7 +63,7 @@ library Constants {
     return ChainConfig({
       chainId: 11_155_111,
       entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
-      navePirataRegistry: address(0),
+      navePirataRegistry: 0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f, // pacto-gov Sepolia
       safe4337Module: address(0),
       squadSponsorFactory: address(0), // set after CREATE2 deploy
       paymaster: address(0), // set after CREATE2 deploy

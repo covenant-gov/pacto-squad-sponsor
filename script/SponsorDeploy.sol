@@ -5,6 +5,7 @@ import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
 import {Constants} from 'script/Constants.sol';
+import {DeploymentArtifacts} from 'script/DeploymentArtifacts.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
@@ -18,7 +19,7 @@ import {console} from 'forge-std/console.sol';
  * @dev `forge script` entrypoints inherit this; integration tests inherit `IntegrationBase` for the same deploy path.
  *      CREATE2 deployer is always `address(this)`. Paymaster address = first CREATE child of the factory (`nonce` 1).
  */
-abstract contract SponsorDeploy is Script {
+abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   struct DeployAddresses {
     address factory;
     address paymaster;
@@ -60,5 +61,10 @@ abstract contract SponsorDeploy is Script {
     console.log('PactoSponsorPaymaster:', address(_paymaster));
     console.log('Factory PAYMASTER:', _factory.PAYMASTER());
     console.log('Hats:', _factory.hats());
+    console.log('NavePirataRegistry:', _config.navePirataRegistry);
+  }
+
+  function _broadcastDeployer() internal returns (address deployer) {
+    (, deployer,) = vm.readCallers();
   }
 }

@@ -14,5 +14,8 @@ contract Deploy is SponsorDeploy {
     vm.stopBroadcast();
 
     _logDeployment();
+    _writeFullSystemJson(
+      _config.entryPoint, _config.navePirataRegistry, address(_factory), address(_paymaster), _broadcastDeployer()
+    );
   }
 }
