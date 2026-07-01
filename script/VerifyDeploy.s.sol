@@ -13,7 +13,8 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  * @author Pacto
  * @notice Etherscan verification for sponsor bootstrap contracts from `deployments/<chainId>/full-system.json`.
  * @dev Requires `FOUNDRY_PROFILE=verify` (`ffi = true` in `[profile.verify]` only). Run after `Deploy`.
- *      Verifies factory, paymaster, and EIP-1167 master copies. Per-squad clones are proxy-verified via `VerifyClones`.
+ *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`).
+ *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
  */
 contract VerifyDeploy is Script {
   using stdJson for string;
@@ -47,7 +48,7 @@ contract VerifyDeploy is Script {
 
   function _verify(address addr, string memory contractId, string memory chain, bytes memory constructorArgs) internal {
     console.log('==>', contractId, addr);
-    string[] memory _inputs = new string[](11);
+    string[] memory _inputs = new string[](12);
     _inputs[0] = 'forge';
     _inputs[1] = 'verify-contract';
     _inputs[2] = vm.toString(addr);
@@ -58,7 +59,8 @@ contract VerifyDeploy is Script {
     _inputs[7] = chain;
     _inputs[8] = '--constructor-args';
     _inputs[9] = vm.toString(constructorArgs);
-    _inputs[10] = '--watch';
+    _inputs[10] = '--skip-is-verified-check';
+    _inputs[11] = '--watch';
     console.log(string(vm.ffi(_inputs)));
   }
 
