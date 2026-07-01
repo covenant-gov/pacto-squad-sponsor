@@ -9,6 +9,9 @@ address constant HATS_PROTOCOL_V1 = 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137;
 /// @dev Default block pin for `vm.createSelectFork` when `MAINNET_RPC` is set (stable Hats singleton).
 uint256 constant DEFAULT_MAINNET_FORK_BLOCK = 22_900_000;
 
+/// @dev Foundry routes `new Contract{salt:}` in broadcast scripts through Nick's CREATE2 deployer.
+address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
 /// @notice Public chain constants and deployed contract addresses.
 /// @dev Private values (RPC URLs, API keys, deployer keystore names) live in `.env` only.
 /// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint)`; paymaster is created in the factory constructor.
@@ -47,6 +50,11 @@ library Constants {
     return SquadSponsorConstants.HATS_ADDRESS;
   }
 
+  /// @notice CREATE2 deployer used by Foundry broadcast scripts (`new Contract{salt:}`).
+  function create2Deployer() internal pure returns (address) {
+    return CREATE2_DEFAULT_DEPLOYER;
+  }
+
   function _mainnet() private pure returns (ChainConfig memory) {
     return ChainConfig({
       chainId: 1,
@@ -63,7 +71,7 @@ library Constants {
     return ChainConfig({
       chainId: 11_155_111,
       entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
-      navePirataRegistry: address(0),
+      navePirataRegistry: 0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f, // pacto-gov Sepolia
       safe4337Module: address(0),
       squadSponsorFactory: address(0), // set after CREATE2 deploy
       paymaster: address(0), // set after CREATE2 deploy
