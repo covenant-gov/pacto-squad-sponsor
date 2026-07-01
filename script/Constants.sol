@@ -9,6 +9,9 @@ address constant HATS_PROTOCOL_V1 = 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137;
 /// @dev Default block pin for `vm.createSelectFork` when `MAINNET_RPC` is set (stable Hats singleton).
 uint256 constant DEFAULT_MAINNET_FORK_BLOCK = 22_900_000;
 
+/// @dev Foundry routes `new Contract{salt:}` in broadcast scripts through Nick's CREATE2 deployer.
+address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
 /// @notice Public chain constants and deployed contract addresses.
 /// @dev Private values (RPC URLs, API keys, deployer keystore names) live in `.env` only.
 /// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint)`; paymaster is created in the factory constructor.
@@ -45,6 +48,11 @@ library Constants {
   /// @notice Hats Protocol singleton referenced by all squad sponsor clones.
   function hats() internal pure returns (address) {
     return SquadSponsorConstants.HATS_ADDRESS;
+  }
+
+  /// @notice CREATE2 deployer used by Foundry broadcast scripts (`new Contract{salt:}`).
+  function create2Deployer() internal pure returns (address) {
+    return CREATE2_DEFAULT_DEPLOYER;
   }
 
   function _mainnet() private pure returns (ChainConfig memory) {

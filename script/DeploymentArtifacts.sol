@@ -29,6 +29,8 @@ abstract contract DeploymentArtifacts is Script {
     address navePirataRegistry,
     address squadSponsorFactory,
     address pactoSponsorPaymaster,
+    address sponsorImplementation,
+    address extImplementation,
     address deployer
   ) internal {
     if (!_shouldWriteDeploymentJson()) return;
@@ -38,6 +40,8 @@ abstract contract DeploymentArtifacts is Script {
     vm.serializeAddress(k, 'navePirataRegistry', navePirataRegistry);
     vm.serializeAddress(k, 'squadSponsorFactory', squadSponsorFactory);
     vm.serializeAddress(k, 'pactoSponsorPaymaster', pactoSponsorPaymaster);
+    vm.serializeAddress(k, 'sponsorImplementation', sponsorImplementation);
+    vm.serializeAddress(k, 'extImplementation', extImplementation);
     string memory json = vm.serializeAddress(k, 'deployer', deployer);
     _writeDeploymentJson(json, 'full-system.json');
   }

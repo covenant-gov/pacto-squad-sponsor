@@ -1,0 +1,8 @@
+{
+  "chainId": 11155111,
+  "deployer": "0x6522cE18D0098A2f98fB6E4a40C081F16d9a71e7",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "navePirataRegistry": "0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f",
+  "pactoSponsorPaymaster": "0x42C76dEbCF45507532B22Ca890C9091240311bD8",
+  "squadSponsorFactory": "0x3994B38f9A0Cf542241FD9C959F94386e6733D6e"
+}

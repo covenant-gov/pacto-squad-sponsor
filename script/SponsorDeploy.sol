@@ -17,7 +17,8 @@ import {console} from 'forge-std/console.sol';
  * @author Pacto
  * @notice Shared CREATE2 deploy routine for `SquadSponsorFactory` (paymaster deployed in factory constructor).
  * @dev `forge script` entrypoints inherit this; integration tests inherit `IntegrationBase` for the same deploy path.
- *      CREATE2 deployer is the broadcast sender (`vm.readCallers()` in scripts; test contract in integration tests).
+ *      CREATE2 deployer is `CREATE2_DEFAULT_DEPLOYER` in `forge script` (Foundry's Create2Deployer);
+ *      integration tests pass `address(this)` because they deploy without broadcast.
  *      Paymaster address = first CREATE child of the factory (`nonce` 1).
  */
 abstract contract SponsorDeploy is Script, DeploymentArtifacts {
