@@ -17,7 +17,7 @@ interface ISquadSponsorExt is ISquadSponsor {
    * @param squadId Squad identifier bound to this clone.
    * @param paymaster Chain paymaster authorized to call `spendGas`.
    * @param factory SquadSponsorFactory address.
-   * @param addressOwner Early-bird eligibility admin (first depositor).
+   * @param addressOwner Eligibility admin for the address permit list (configured at create).
    */
   function initialize(bytes32 squadId, address paymaster, address factory, address addressOwner) external;
 

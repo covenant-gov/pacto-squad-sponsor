@@ -12,6 +12,7 @@ import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
 import {Constants} from 'script/Constants.sol';
 
+import {Vm} from 'forge-std/Vm.sol';
 import {IntegrationBase} from 'test/integration/IntegrationBase.sol';
 
 /**
@@ -21,6 +22,7 @@ import {IntegrationBase} from 'test/integration/IntegrationBase.sol';
  */
 contract E2ESquadSponsorFactoryTest is IntegrationBase {
   address internal _creator = makeAddr('e2eFactoryCreator');
+  address internal _rosterOwner = makeAddr('e2eRosterOwner');
 
   /*///////////////////////////////////////////////////////////////
                         integration wiring
@@ -50,7 +52,7 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
     _fund(_creator, 1 ether);
 
     vm.prank(_creator);
-    address _sponsor = _factory.createSquadSponsorExt(_id);
+    address _sponsor = _factory.createSquadSponsorExt(_id, _creator);
 
     assertGt(_sponsor.code.length, 0);
 
@@ -61,29 +63,80 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
     assertEq(_factory.squadIdBySponsor(_sponsor), _id);
   }
 
-  function test_e2e_createSquadSponsorExt_firstCallerBecomesAddressOwner() public {
+  function test_e2e_createSquadSponsorExt_setsConfiguredAddressOwner() public {
     bytes32 _id = _freshSquadId();
+    _fund(_creator, 1 ether);
 
     vm.prank(_creator);
-    address _sponsor = _factory.createSquadSponsorExt(_id);
+    address _sponsor = _factory.createSquadSponsorExt(_id, _rosterOwner);
 
-    assertEq(SquadSponsorExt(payable(_sponsor)).addressOwner(), _creator);
+    assertEq(SquadSponsorExt(payable(_sponsor)).addressOwner(), _rosterOwner);
+    assertTrue(_creator != _rosterOwner);
   }
 
-  function test_e2e_createSquadSponsorExt_withDepositCreditsShares() public {
+  function test_e2e_createSquadSponsorExt_deployerNotOwner_cannotSetPermitted() public {
+    bytes32 _id = _freshSquadId();
+    address _member = makeAddr('e2ePermittedByOwner');
+    _fund(_creator, 1 ether);
+
+    vm.prank(_creator);
+    address _sponsor = _factory.createSquadSponsorExt(_id, _rosterOwner);
+    SquadSponsorExt _ext = SquadSponsorExt(payable(_sponsor));
+
+    vm.prank(_creator);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
+    _ext.setPermittedAddress(_member, true);
+
+    vm.prank(_rosterOwner);
+    _ext.setPermittedAddress(_member, true);
+    assertTrue(_ext.isEligible(_member));
+  }
+
+  function test_e2e_createSquadSponsorExt_withDepositCreditsFunderShares() public {
     bytes32 _id = _freshSquadId();
     _fund(_creator, 3 ether);
 
     vm.prank(_creator);
-    address _sponsor = _factory.createSquadSponsorExt{value: 3 ether}(_id);
+    address _sponsor = _factory.createSquadSponsorExt{value: 3 ether}(_id, _rosterOwner);
 
     assertEq(address(_sponsor).balance, 3 ether);
     assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
+    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+  }
+
+  function test_e2e_createSquadSponsorExt_revertsOnZeroAddressOwner() public {
+    bytes32 _id = _freshSquadId();
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    _factory.createSquadSponsorExt(_id, address(0));
+  }
+
+  function test_e2e_createSquadSponsorExt_emitsConfiguredAddressOwner() public {
+    bytes32 _id = _freshSquadId();
+    _fund(_creator, 1 ether);
+
+    vm.recordLogs();
+    vm.prank(_creator);
+    address _sponsor = _factory.createSquadSponsorExt(_id, _rosterOwner);
+
+    Vm.Log[] memory _logs = vm.getRecordedLogs();
+    bool _found;
+    for (uint256 _i; _i < _logs.length; ++_i) {
+      if (_logs[_i].topics[0] != ISquadSponsorCommon.SquadCreated.selector) continue;
+      assertEq(_logs[_i].topics[1], _id);
+      assertEq(address(uint160(uint256(_logs[_i].topics[2]))), _rosterOwner);
+      (address _emittedSponsor, ISquadSponsorCommon.SquadVariant _variant) =
+        abi.decode(_logs[_i].data, (address, ISquadSponsorCommon.SquadVariant));
+      assertEq(_emittedSponsor, _sponsor);
+      assertEq(uint256(_variant), uint256(ISquadSponsorCommon.SquadVariant.EXT));
+      _found = true;
+    }
+    assertTrue(_found);
   }
 
   function test_e2e_createSquadSponsorExt_revertsWhenSquadAlreadyExists() public withDeployedExtSquad {
     vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_SquadAlreadyExists.selector, _squadId));
-    _factory.createSquadSponsorExt(_squadId);
+    _factory.createSquadSponsorExt(_squadId, _addressOwner);
   }
 
   /*///////////////////////////////////////////////////////////////
