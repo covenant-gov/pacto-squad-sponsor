@@ -60,7 +60,7 @@ interface ISquadSponsorCommon {
    * @param squadId Squad identifier registered by the factory.
    * @param sponsor New sponsor clone address.
    * @param variant Which implementation was deployed.
-   * @param addressOwner First depositor and initial address-list admin (Ext path only).
+   * @param addressOwner Ext path: configured address-list admin. Hats path: deployer (`msg.sender`).
    */
   event SquadCreated(bytes32 indexed squadId, address sponsor, SquadVariant variant, address indexed addressOwner);
 

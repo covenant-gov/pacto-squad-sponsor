@@ -29,7 +29,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     super.setUp();
     vm.deal(_member, 10 ether);
     vm.deal(address(this), 5 ether);
-    _sponsor = _factory.createSquadSponsorExt{value: 5 ether}(_squadId);
+    _sponsor = _factory.createSquadSponsorExt{value: 5 ether}(_squadId, address(this));
     SquadSponsorExt(payable(_sponsor)).setPermittedAddress(_member, true);
   }
 

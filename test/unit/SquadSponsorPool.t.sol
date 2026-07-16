@@ -22,7 +22,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
 
   function setUp() public override {
     super.setUp();
-    address _sponsor = _factory.createSquadSponsorExt(_squadId);
+    address _sponsor = _factory.createSquadSponsorExt(_squadId, address(this));
     _pool = ISquadSponsorBase(_sponsor);
 
     vm.deal(address(this), 10 ether);
@@ -170,7 +170,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
 
   function test_Unit_Pool_WithdrawableZeroEmptyPool() external {
     bytes32 _emptyId = keccak256('empty-pool');
-    address _emptySponsor = _factory.createSquadSponsorExt(_emptyId);
+    address _emptySponsor = _factory.createSquadSponsorExt(_emptyId, address(this));
 
     assertEq(ISquadSponsorBase(_emptySponsor).withdrawable(_alice), 0);
   }

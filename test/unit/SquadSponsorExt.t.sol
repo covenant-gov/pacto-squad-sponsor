@@ -23,7 +23,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   function setUp() public override {
     super.setUp();
     vm.prank(_owner);
-    address _sponsor = _factory.createSquadSponsorExt(_squadId);
+    address _sponsor = _factory.createSquadSponsorExt(_squadId, _owner);
     _ext = SquadSponsorExt(payable(_sponsor));
   }
 

@@ -118,7 +118,7 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
     _fund(_addressOwner, 10 ether);
 
     vm.prank(_addressOwner);
-    address _sponsor = _factory.createSquadSponsorExt{value: _E2E_POOL_DEPOSIT}(_squadId);
+    address _sponsor = _factory.createSquadSponsorExt{value: _E2E_POOL_DEPOSIT}(_squadId, _addressOwner);
     _extSponsor = SquadSponsorExt(payable(_sponsor));
 
     _fixtureHasExtSquad = true;

@@ -40,11 +40,11 @@ abstract contract UnitSquadSponsorBase is Test {
   }
 
   function _createSquadExt(bytes32 squadId) internal returns (address sponsor) {
-    sponsor = _factory.createSquadSponsorExt(squadId);
+    sponsor = _factory.createSquadSponsorExt(squadId, address(this));
   }
 
   function _createSquadExtWithDeposit(bytes32 squadId, uint256 depositAmount) internal returns (address sponsor) {
-    sponsor = _factory.createSquadSponsorExt{value: depositAmount}(squadId);
+    sponsor = _factory.createSquadSponsorExt{value: depositAmount}(squadId, address(this));
   }
 
   function _createSquadHat(

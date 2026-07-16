@@ -28,11 +28,13 @@ interface ISquadSponsorFactory is ISquadSponsorCommon {
                             LOGIC
   //////////////////////////////////////////////////////////////*/
   /**
-   * @notice Deploy an Ext clone for `squadId` and set `msg.sender` as address owner.
+   * @notice Deploy an Ext clone for `squadId` with `addressOwner` as address-list admin.
+   * @dev Optional ETH credits sponsor shares to `msg.sender` (funder), not necessarily `addressOwner`.
    * @param squadId Squad identifier from the app.
+   * @param addressOwner Non-zero Ext eligibility admin (may differ from the deployer).
    * @return sponsor New Ext clone address.
    */
-  function createSquadSponsorExt(bytes32 squadId) external payable returns (address sponsor);
+  function createSquadSponsorExt(bytes32 squadId, address addressOwner) external payable returns (address sponsor);
 
   /**
    * @notice Deploy a hat-first SquadSponsor clone for `squadId`.

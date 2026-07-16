@@ -51,13 +51,14 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc ISquadSponsorFactory
-  function createSquadSponsorExt(bytes32 squadId) external payable returns (address sponsor) {
+  function createSquadSponsorExt(bytes32 squadId, address addressOwner) external payable returns (address sponsor) {
     if (_squads[squadId].sponsor != address(0)) revert SS_SquadAlreadyExists(squadId);
+    if (addressOwner == address(0)) revert SS_ZeroAddress();
 
     sponsor = Clones.clone(extImplementation);
-    SquadSponsorExt(payable(sponsor)).initialize(squadId, PAYMASTER, address(this), msg.sender);
+    SquadSponsorExt(payable(sponsor)).initialize(squadId, PAYMASTER, address(this), addressOwner);
 
-    _registerSquad(squadId, sponsor, SquadVariant.EXT, 0);
+    _registerSquad(squadId, sponsor, SquadVariant.EXT, 0, addressOwner);
     _depositIfAny(sponsor);
   }
 
@@ -75,7 +76,7 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     sponsor = Clones.clone(sponsorImplementation);
     SquadSponsor(payable(sponsor)).initialize(squadId, PAYMASTER, address(this), topHatId, registry, customEligibleHats);
 
-    _registerSquad(squadId, sponsor, SquadVariant.SPONSOR, topHatId);
+    _registerSquad(squadId, sponsor, SquadVariant.SPONSOR, topHatId, msg.sender);
     _depositIfAny(sponsor);
   }
 
@@ -111,11 +112,18 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
    * @param sponsor New clone address.
    * @param variant Which implementation was deployed.
    * @param topHatId Linked top hat id (zero until wired on Ext clones).
+   * @param addressOwner Ext: configured admin. Hats: deployer (`msg.sender`).
    */
-  function _registerSquad(bytes32 squadId, address sponsor, SquadVariant variant, uint256 topHatId) internal {
+  function _registerSquad(
+    bytes32 squadId,
+    address sponsor,
+    SquadVariant variant,
+    uint256 topHatId,
+    address addressOwner
+  ) internal {
     _squads[squadId] = SquadRecord({sponsor: sponsor, variant: variant, topHatId: topHatId});
     squadIdBySponsor[sponsor] = squadId;
-    emit SquadCreated(squadId, sponsor, variant, msg.sender);
+    emit SquadCreated(squadId, sponsor, variant, addressOwner);
   }
 
   /**
