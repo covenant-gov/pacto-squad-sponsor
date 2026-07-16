@@ -73,8 +73,8 @@ library Constants {
       entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
       navePirataRegistry: 0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f, // pacto-gov Sepolia
       safe4337Module: address(0),
-      squadSponsorFactory: address(0), // set after CREATE2 deploy
-      paymaster: address(0), // set after CREATE2 deploy
+      squadSponsorFactory: 0x032e84cff3b32c221f8F93e4839Fa5715638ae08, // deployments/11155111/full-system.json
+      paymaster: 0xF7f557a9443671EB0f5a3F1b233Ac44A9eDa24B8, // deployments/11155111/full-system.json
       mainnetForkBlock: 0
     });
   }

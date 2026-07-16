@@ -22,6 +22,8 @@ This spec is written for an **implementing agent** working in **pacto-squad-spon
 
 **Out of scope for pacto-squad-sponsor v1:** Governance logic in pacto-gov ( **`PactoAdmin`**, factory wiring — tracked in [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md)). **Crew hat mint sponsorship** (captain-controlled; not v1). **On-chain balance alerts** (app-side only).
 
+**Desktop / `pacto-app` integration:** Normative client guide, golden vectors, and encoder helpers live in [`DESKTOP_CLIENT_INTEGRATION.md`](./DESKTOP_CLIENT_INTEGRATION.md) (issue [#5](https://github.com/covenant-gov/pacto-squad-sponsor/issues/5)).
+
 ---
 
 ## 1. Product summary
