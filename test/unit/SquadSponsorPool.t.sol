@@ -36,6 +36,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
 
     assertEq(_pool.sponsorShares(_alice), 5 ether);
     assertEq(_pool.totalShares(), 15 ether);
+    assertEq(_pool.spendablePoolWei(), 15 ether);
     assertEq(_pool.withdrawable(_alice), 5 ether);
   }
 
@@ -72,6 +73,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     _pool.spendGas(1 ether);
 
     assertEq(address(_pool).balance, 9 ether);
+    assertEq(_pool.spendablePoolWei(), 9 ether);
     assertEq(address(_paymaster).balance, 1 ether);
   }
 
@@ -122,7 +124,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     vm.prank(address(_paymaster));
     _pool.spendGas(_spent);
 
-    assertLe(_pool.withdrawable(sponsor), address(_pool).balance);
+    assertLe(_pool.withdrawable(sponsor), _pool.spendablePoolWei());
   }
 
   function test_Unit_Pool_DepositForCreditsSponsor() external {

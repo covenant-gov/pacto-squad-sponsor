@@ -176,7 +176,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   }
 
   function test_Unit_Ext_SetPermittedAddressAlreadyWiredReverts() external {
-    vm.store(address(_ext), bytes32(uint256(5)), bytes32(uint256(0x500)));
+    vm.store(address(_ext), bytes32(uint256(6)), bytes32(uint256(0x500)));
 
     vm.prank(_owner);
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
@@ -184,7 +184,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   }
 
   function test_Unit_Ext_TransferAddressOwnerAlreadyWiredReverts() external {
-    vm.store(address(_ext), bytes32(uint256(5)), bytes32(uint256(0x501)));
+    vm.store(address(_ext), bytes32(uint256(6)), bytes32(uint256(0x501)));
 
     vm.prank(_owner);
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);

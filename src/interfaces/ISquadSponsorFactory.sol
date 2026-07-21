@@ -58,14 +58,58 @@ interface ISquadSponsorFactory is ISquadSponsorCommon {
    */
   function registerHatsWiring(bytes32 squadId, uint256 topHatId) external;
 
+  /**
+   * @notice Stake ETH on the paymaster via EntryPoint (FCFS single-staker slot).
+   * @dev Initial stake requires `msg.value >= 0.1 ether` and `unstakeDelaySec >= 1 days`.
+   *      Current staker may top up with any positive value. Occupied slot blocks other callers.
+   * @param unstakeDelaySec Unstake delay (seconds). May only increase on EntryPoint.
+   */
+  function addPaymasterStake(uint32 unstakeDelaySec) external payable;
+
+  /**
+   * @notice Begin unlocking the paymaster EntryPoint stake. Only the current staker.
+   */
+  function unlockPaymasterStake() external;
+
+  /**
+   * @notice Withdraw unlocked paymaster stake to `to` and clear the FCFS slot. Only the current staker.
+   * @param to Recipient of stake ETH.
+   */
+  function withdrawPaymasterStake(address payable to) external;
+
+  /**
+   * @notice Withdraw paymaster EntryPoint deposit to `to`. Only the current staker.
+   * @param to Recipient of deposit ETH.
+   * @param amount Wei to withdraw.
+   */
+  function withdrawPaymasterDeposit(address payable to, uint256 amount) external;
+
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
+  /**
+   * @notice Minimum initial paymaster stake (Alchemy Sepolia-compatible floor).
+   * @return minimumWei Required wei for the first FCFS stake.
+   */
+  function MIN_PAYMASTER_STAKE_WEI() external view returns (uint256 minimumWei);
+
+  /**
+   * @notice Minimum unstake delay for initial paymaster stake.
+   * @return minimumSec Required delay in seconds.
+   */
+  function MIN_UNSTAKE_DELAY_SEC() external view returns (uint32 minimumSec);
+
   /**
    * @notice Wired paymaster for all squad sponsor clones.
    * @return paymaster Paymaster address.
    */
   function PAYMASTER() external view returns (address paymaster);
+
+  /**
+   * @notice Address holding the FCFS paymaster stake slot (`address(0)` if vacant).
+   * @return staker Current staker.
+   */
+  function paymasterStaker() external view returns (address staker);
 
   /**
    * @notice Hats Protocol singleton used by sponsor clones.

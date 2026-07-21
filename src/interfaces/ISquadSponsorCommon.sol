@@ -78,6 +78,35 @@ interface ISquadSponsorCommon {
    */
   event OwnerTransferred(address indexed previousOwner, address indexed newOwner);
 
+  /**
+   * @notice ETH was added to the paymaster EntryPoint stake via the factory.
+   * @param staker Account holding the FCFS stake slot.
+   * @param amount Wei forwarded to `addStake`.
+   * @param unstakeDelaySec Unstake delay applied (or increased) for this stake.
+   */
+  event PaymasterStakeAdded(address indexed staker, uint256 amount, uint32 unstakeDelaySec);
+
+  /**
+   * @notice The paymaster EntryPoint stake unlock was started.
+   * @param staker Account holding the FCFS stake slot.
+   */
+  event PaymasterStakeUnlocked(address indexed staker);
+
+  /**
+   * @notice The paymaster EntryPoint stake was withdrawn and the FCFS slot cleared.
+   * @param staker Account that held the FCFS stake slot.
+   * @param to Recipient of withdrawn stake ETH.
+   */
+  event PaymasterStakeWithdrawn(address indexed staker, address indexed to);
+
+  /**
+   * @notice EntryPoint deposit was withdrawn via the factory by the current staker.
+   * @param staker Account holding the FCFS stake slot.
+   * @param to Recipient of withdrawn deposit ETH.
+   * @param amount Wei withdrawn from the paymaster EntryPoint deposit.
+   */
+  event PaymasterDepositWithdrawn(address indexed staker, address indexed to, uint256 amount);
+
   /*///////////////////////////////////////////////////////////////
                             ERRORS
   //////////////////////////////////////////////////////////////*/
@@ -137,4 +166,27 @@ interface ISquadSponsorCommon {
    * @param member Member address supplied in `paymasterAndData`.
    */
   error SS_InvalidMemberBinding(address sender, address member);
+
+  /**
+   * @notice Paymaster stake slot is already held by another address.
+   * @param staker Current FCFS staker.
+   */
+  error SS_StakeSlotOccupied(address staker);
+
+  /// @notice Caller is not the current FCFS paymaster staker.
+  error SS_NotPaymasterStaker();
+
+  /**
+   * @notice Initial stake amount is below the required floor.
+   * @param amount Wei supplied.
+   * @param minimum Required minimum wei.
+   */
+  error SS_StakeTooSmall(uint256 amount, uint256 minimum);
+
+  /**
+   * @notice Unstake delay is below the required floor.
+   * @param delaySec Delay supplied.
+   * @param minimum Required minimum delay in seconds.
+   */
+  error SS_UnstakeDelayTooShort(uint32 delaySec, uint32 minimum);
 }

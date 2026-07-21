@@ -21,7 +21,7 @@ Sponsorship pays **gas only**. Action permission stays in `pacto-gov` (`PactoAdm
 A UserOp is sponsored when **all** of the following hold:
 
 1. `paymasterAndData` encodes version `1`, the correct `squadId`, the **factory-registered** sponsor clone, and a non-zero `member`.
-2. Pool ETH balance ≥ `maxCost × 115%` (integer division; see §5).
+2. `sponsor.spendablePoolWei() >= maxCost × 115%` (integer division; see §7). Storage-backed — **not** `address(sponsor).balance` (ERC-7562 bans `BALANCE` during paymaster validation unless the paymaster is staked).
 3. `ISquadSponsorBase(sponsor).isEligible(member)` is true:
    - **Ext (pre-hat wiring):** `member` is on the Ext permit list.
    - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears captain or crew hat from `NavePirataRegistry.deployment(topHatId)`, or a configured `customEligibleHats` hat.
@@ -68,9 +68,48 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 
 **Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster are not deployed in-repo yet (`address(0)` in `script/Constants.sol`).
 
+**Greenfield after stake/`spendablePoolWei` redeploy:** A new factory creates a new paymaster. Existing Sepolia clones were initialized with the old paymaster and are **not** reusable — recreate squad sponsors after publishing new addresses. Until redeploy, treat the table above as historical; prefer `deployments/11155111/full-system.json` after you update it.
+
 Per-squad clone addresses come from factory create / app deploy flow — look up with `factory.squads(squadId)` or `factory.squadIdBySponsor(sponsor)`.
 
 ---
+
+## 3.1 Funding buckets (protocol ops vs squad)
+
+| Bucket | Who funds | How |
+|--------|-----------|-----|
+| **Squad clone pool** | Squad members | `sponsor.deposit()` / create with value — reimburses paymaster via `spendGas` |
+| **EntryPoint deposit** | Anyone (typically Core) | `paymaster.deposit{value:}()` — liquid gas float |
+| **EntryPoint stake** | FCFS single staker via factory | `factory.addPaymasterStake` — bundler trust / ERC-7562 (Alchemy floor: **≥ 0.1 ETH**, delay **≥ 1 day**) |
+
+Holding the FCFS stake slot (`factory.paymasterStaker()`) also controls:
+
+- `unlockPaymasterStake` / `withdrawPaymasterStake` (clears slot)
+- `withdrawPaymasterDeposit(to, amount)` → `paymaster.withdrawTo` (EP deposit exit)
+
+Vacant slot → no deposit withdraw until someone stakes. No multi-contributor credit accounting (MVP).
+
+### Cast examples (Core ops — not end-user UI)
+
+```bash
+# Fund EP deposit (anyone)
+cast send $PAYMASTER "deposit()" --value 0.05ether --rpc-url $SEPOLIA_RPC --account $OPS
+
+# Claim FCFS stake slot (initial ≥ 0.1 ETH, delay ≥ 86400)
+cast send $FACTORY "addPaymasterStake(uint32)" 86400 --value 0.1ether --rpc-url $SEPOLIA_RPC --account $OPS
+
+# Top up (same staker only)
+cast send $FACTORY "addPaymasterStake(uint32)" 86400 --value 0.01ether --rpc-url $SEPOLIA_RPC --account $OPS
+
+# Unlock → wait delay → withdraw stake (clears slot)
+cast send $FACTORY "unlockPaymasterStake()" --rpc-url $SEPOLIA_RPC --account $OPS
+cast send $FACTORY "withdrawPaymasterStake(address)" $OPS_ADDR --rpc-url $SEPOLIA_RPC --account $OPS
+
+# Withdraw EP deposit (current staker only)
+cast send $FACTORY "withdrawPaymasterDeposit(address,uint256)" $OPS_ADDR 10000000000000000 --rpc-url $SEPOLIA_RPC --account $OPS
+```
+
+Without sufficient stake, bundlers may reject UserOps with `-32502` / banned opcode (`BALANCE`). After this codebase change, validation uses `spendablePoolWei()` instead of `BALANCE`, but stake is still required for normal bundler policy.
 
 ## 4. Building `paymasterAndData`
 
@@ -105,7 +144,7 @@ Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or
 
 1. Parse payload → wrong version **reverts** `SS_InvalidVersion`.
 2. `factory.squads(squadId).sponsor == sponsor` → else **revert** `SS_CloneMismatch`.
-3. `sponsor.balance >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
+3. `sponsor.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
 4. Eligibility / binding → soft-fail `1` or hard revert `SS_InvalidMemberBinding` (EOA mismatch).
 5. Success: `context = abi.encode(sponsor)`, `validationData = 0`.
 6. On `postOp` with `opSucceeded` only: `sponsor.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
@@ -121,7 +160,7 @@ The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlist
 ### Steps
 
 1. Resolve `squadId` and registered `sponsor` (factory registry). Confirm `sponsor.isEligible(captainEoa)`.
-2. Ensure pool headroom: `sponsor.balance >= ceilEstimate(maxCost) * 115 / 100` (see §7).
+2. Ensure pool headroom: `sponsor.spendablePoolWei() >= requiredBalance` (see §7).
 3. If the roster key still has empty code: submit **EIP-7702 authorization** delegating to the app’s pinned ERC-4337 account implementation (one-time / as needed).
 4. Build a packed UserOperation:
    - `sender` = captain roster EVM (after 7702, this is the account that validates the UserOp).
@@ -149,7 +188,8 @@ See vector `sample_external_call_bootstrapCrew` in the golden JSON for exact hex
 | `SS_InvalidVersion(version)` | Hard revert | Payload version ≠ `1` | Rebuild `paymasterAndData` with version `1`. |
 | `SS_CloneMismatch(squadId)` | Hard revert | `sponsor` ≠ `factory.squads(squadId).sponsor` | Refresh clone address from factory; never trust a client-supplied sponsor alone. |
 | `SS_InvalidMemberBinding(sender, member)` | Hard revert | EOA `sender ≠ member` | Set both to the roster EVM (eligibility subject). |
-| `validationData == 1` (`SIG_VALIDATION_FAILED`) | Soft fail | Ineligible member, `member == 0`, or pool &lt; `maxCost × 115%` | Check `isEligible(member)`; fund pool; lower gas / `maxCost`. |
+| `validationData == 1` (`SIG_VALIDATION_FAILED`) | Soft fail | Ineligible member, `member == 0`, or `spendablePoolWei` &lt; `maxCost × 115%` | Check `isEligible(member)`; fund pool; lower gas / `maxCost`. |
+| Bundler `-32502` / banned opcode | Bundler | Paymaster unstaked or legacy `BALANCE` validation | Stake via factory (≥0.1 ETH, ≥1 day); use redeployed paymaster with `spendablePoolWei`. |
 | `SS_InsufficientBalance` | During `spendGas` | Pool drained between validation and postOp | Rare race; refund/retry after deposit. |
 | `SS_NotPaymaster` | During `spendGas` | Non-paymaster called `spendGas` | Client bug — never call `spendGas` from the app. |
 | `SS_NoShares` | `withdraw()` | Caller has no deposit shares | Only depositors withdraw (see §8). |
@@ -166,6 +206,7 @@ On-chain rule:
 
 ```text
 requiredBalance = maxCost * 11500 / 10000   // Solidity integer division
+// compared to sponsor.spendablePoolWei() (storage), not address(sponsor).balance
 ```
 
 The paymaster does not define per-call gas caps. Size `maxCost` from bundler simulation / local gas estimate × max fee.
@@ -188,7 +229,7 @@ There is **no** on-chain calldata-size or batch-size limit for `bootstrapCrew` i
 
 | Who | Can withdraw? |
 |-----|----------------|
-| Address with `sponsorShares[addr] > 0` | **Yes** — burns all of **their** shares; receives pro-rata of **current** pool balance |
+| Address with `sponsorShares[addr] > 0` | **Yes** — burns all of **their** shares; receives pro-rata of **current** `spendablePoolWei` |
 | Hat wearer / Ext-permitted member (no shares) | **No** — eligibility ≠ deposit rights |
 | `addressOwner` (Ext admin) | **No** special withdraw power — cannot withdraw others’ deposits |
 

@@ -66,7 +66,7 @@ contract E2ESquadSponsorExtTest is IntegrationBase {
   }
 
   function test_e2e_setPermittedAddress_revertsAfterHatsWired() public withDeployedExtSquad {
-    vm.store(address(_extSponsor), bytes32(uint256(5)), bytes32(_E2E_TOP_HAT_ID));
+    vm.store(address(_extSponsor), bytes32(uint256(6)), bytes32(_E2E_TOP_HAT_ID));
 
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
     vm.prank(_addressOwner);
@@ -111,7 +111,7 @@ contract E2ESquadSponsorExtTest is IntegrationBase {
   }
 
   function test_e2e_transferAddressOwner_revertsAfterHatsWired() public withDeployedExtSquad {
-    vm.store(address(_extSponsor), bytes32(uint256(5)), bytes32(_E2E_TOP_HAT_ID));
+    vm.store(address(_extSponsor), bytes32(uint256(6)), bytes32(_E2E_TOP_HAT_ID));
 
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
     vm.prank(_addressOwner);

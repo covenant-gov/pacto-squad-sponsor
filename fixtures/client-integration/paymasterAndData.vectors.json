@@ -52,7 +52,8 @@
   "headroom": {
     "maxCostWei": "1000000000000000000",
     "requiredBalanceWei": "1150000000000000000",
-    "formula": "requiredBalance = maxCost * 11500 / 10000"
+    "formula": "requiredBalance = maxCost * 11500 / 10000; compared to spendablePoolWei() (storage), not address.balance",
+    "note": "Paymaster validation must not use BALANCE opcode (ERC-7562); use ISquadSponsorBase.spendablePoolWei()"
   },
   "postOp": {
     "modeSucceeded": {

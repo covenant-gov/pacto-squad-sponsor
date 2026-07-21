@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
@@ -64,6 +65,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     _paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, _context, 1 ether, 0);
 
     assertEq(address(_sponsor).balance, 4 ether);
+    assertEq(ISquadSponsorBase(_sponsor).spendablePoolWei(), 4 ether);
     assertEq(address(_paymaster).balance - _balanceBefore, 1 ether);
   }
 
