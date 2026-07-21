@@ -28,6 +28,8 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
   uint256 public totalShares;
   /// @inheritdoc ISquadSponsorBase
   mapping(address sponsor => uint256 shares) public sponsorShares;
+  /// @notice Storage-backed pool wei available for sponsorship (no BALANCE opcode).
+  uint256 internal _spendablePoolWei;
 
   /*///////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -68,11 +70,12 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
     uint256 _shares = sponsorShares[msg.sender];
     if (_shares == 0) revert SS_NoShares();
 
-    uint256 _balance = address(this).balance;
-    uint256 _amount = (_shares * _balance) / totalShares;
+    uint256 _pool = _spendablePoolWei;
+    uint256 _amount = (_shares * _pool) / totalShares;
 
     sponsorShares[msg.sender] = 0;
     totalShares -= _shares;
+    _spendablePoolWei = _pool - _amount;
 
     ETHTransfer.sendEth(msg.sender, _amount);
 
@@ -82,8 +85,9 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
   /// @inheritdoc ISquadSponsorBase
   function spendGas(uint256 amount) external {
     if (msg.sender != paymaster) revert SS_NotPaymaster();
-    if (amount > address(this).balance) revert SS_InsufficientBalance();
+    if (amount > _spendablePoolWei) revert SS_InsufficientBalance();
 
+    _spendablePoolWei -= amount;
     ETHTransfer.sendEth(paymaster, amount);
 
     emit GasSpent(msg.sender, amount);
@@ -99,10 +103,15 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
   }
 
   /// @inheritdoc ISquadSponsorBase
+  function spendablePoolWei() external view returns (uint256 amount) {
+    amount = _spendablePoolWei;
+  }
+
+  /// @inheritdoc ISquadSponsorBase
   function withdrawable(address sponsor) external view returns (uint256 amount) {
     uint256 _shares = sponsorShares[sponsor];
     if (_shares == 0 || totalShares == 0) return 0;
-    amount = (_shares * address(this).balance) / totalShares;
+    amount = (_shares * _spendablePoolWei) / totalShares;
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -129,7 +138,7 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
     if (msg.value == 0) revert SS_ZeroAmount();
 
     uint256 _shares;
-    uint256 _balanceBefore = address(this).balance - msg.value;
+    uint256 _balanceBefore = _spendablePoolWei;
 
     if (totalShares != 0 && _balanceBefore != 0) {
       _shares = (msg.value * totalShares) / _balanceBefore;
@@ -139,6 +148,7 @@ abstract contract SquadSponsorBase is ISquadSponsorBase, Initializable {
 
     sponsorShares[sponsor] += _shares;
     totalShares += _shares;
+    _spendablePoolWei = _balanceBefore + msg.value;
 
     emit Deposited(sponsor, msg.value, _shares);
   }

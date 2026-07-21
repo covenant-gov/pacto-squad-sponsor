@@ -14,7 +14,7 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
 /**
  * @title PactoSponsorPaymaster
  * @author Pacto
- * @notice ERC-4337 paymaster that validates squad clone registry, pool balance, and eligibility.
+ * @notice ERC-4337 paymaster that validates squad clone registry, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
  */
 contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
@@ -70,7 +70,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     _validateRegistry(_data);
 
     uint256 _requiredBalance = (maxCost * _BALANCE_HEADROOM_BPS) / 10_000;
-    if (_data.sponsor.balance < _requiredBalance) {
+    if (ISquadSponsorBase(_data.sponsor).spendablePoolWei() < _requiredBalance) {
       return ('', SIG_VALIDATION_FAILED);
     }
 

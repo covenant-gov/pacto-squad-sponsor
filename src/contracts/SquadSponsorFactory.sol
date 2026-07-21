@@ -20,12 +20,20 @@ import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
  */
 contract SquadSponsorFactory is ISquadSponsorFactory {
   /// @inheritdoc ISquadSponsorFactory
+  uint256 public constant MIN_PAYMASTER_STAKE_WEI = 0.1 ether;
+  /// @inheritdoc ISquadSponsorFactory
+  uint32 public constant MIN_UNSTAKE_DELAY_SEC = 1 days;
+
+  /// @inheritdoc ISquadSponsorFactory
   address public immutable PAYMASTER;
 
   /// @inheritdoc ISquadSponsorFactory
   address public sponsorImplementation;
   /// @inheritdoc ISquadSponsorFactory
   address public extImplementation;
+
+  /// @inheritdoc ISquadSponsorFactory
+  address public paymasterStaker;
 
   /// @notice Per-squad registry rows keyed by squad id.
   mapping(bytes32 squadId => SquadRecord record) internal _squads;
@@ -89,6 +97,56 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     _record.topHatId = topHatId;
   }
 
+  /// @inheritdoc ISquadSponsorFactory
+  function addPaymasterStake(uint32 unstakeDelaySec) external payable {
+    if (msg.value == 0) revert SS_ZeroAmount();
+
+    address _staker = paymasterStaker;
+    if (_staker == address(0)) {
+      if (msg.value < MIN_PAYMASTER_STAKE_WEI) {
+        revert SS_StakeTooSmall(msg.value, MIN_PAYMASTER_STAKE_WEI);
+      }
+      if (unstakeDelaySec < MIN_UNSTAKE_DELAY_SEC) {
+        revert SS_UnstakeDelayTooShort(unstakeDelaySec, MIN_UNSTAKE_DELAY_SEC);
+      }
+      paymasterStaker = msg.sender;
+      _staker = msg.sender;
+    } else if (msg.sender != _staker) {
+      revert SS_StakeSlotOccupied(_staker);
+    }
+
+    PactoSponsorPaymaster(payable(PAYMASTER)).addStake{value: msg.value}(unstakeDelaySec);
+    emit PaymasterStakeAdded(_staker, msg.value, unstakeDelaySec);
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
+  function unlockPaymasterStake() external {
+    _onlyPaymasterStaker();
+    PactoSponsorPaymaster(payable(PAYMASTER)).unlockStake();
+    emit PaymasterStakeUnlocked(msg.sender);
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
+  function withdrawPaymasterStake(address payable to) external {
+    _onlyPaymasterStaker();
+    if (to == address(0)) revert SS_ZeroAddress();
+
+    address _staker = msg.sender;
+    PactoSponsorPaymaster(payable(PAYMASTER)).withdrawStake(to);
+    paymasterStaker = address(0);
+    emit PaymasterStakeWithdrawn(_staker, to);
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
+  function withdrawPaymasterDeposit(address payable to, uint256 amount) external {
+    _onlyPaymasterStaker();
+    if (to == address(0)) revert SS_ZeroAddress();
+    if (amount == 0) revert SS_ZeroAmount();
+
+    PactoSponsorPaymaster(payable(PAYMASTER)).withdrawTo(to, amount);
+    emit PaymasterDepositWithdrawn(msg.sender, to, amount);
+  }
+
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
@@ -134,5 +192,12 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     if (msg.value > 0) {
       ISquadSponsorBase(payable(sponsor)).depositFor{value: msg.value}(msg.sender);
     }
+  }
+
+  /**
+   * @notice Reverts unless `msg.sender` holds the FCFS paymaster stake slot.
+   */
+  function _onlyPaymasterStaker() internal view {
+    if (msg.sender != paymasterStaker) revert SS_NotPaymasterStaker();
   }
 }

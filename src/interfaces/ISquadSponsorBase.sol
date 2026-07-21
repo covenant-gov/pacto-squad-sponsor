@@ -45,6 +45,12 @@ interface ISquadSponsorBase is ISquadSponsorCommon {
   function isEligible(address member) external view returns (bool eligible);
 
   /**
+   * @notice Storage-backed ETH available for sponsorship (no `BALANCE` opcode).
+   * @return amount Spendable pool wei tracked on deposit / withdraw / spendGas.
+   */
+  function spendablePoolWei() external view returns (uint256 amount);
+
+  /**
    * @notice Squad identifier for this clone.
    * @return squadId Bound squad id.
    */

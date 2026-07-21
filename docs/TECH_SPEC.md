@@ -204,6 +204,8 @@ flowchart TB
 **`SquadSponsorFactory`** (chain singleton, CREATE2-deployed with `PactoSponsorPaymaster`):
 
 - `createSquadSponsorExt(bytes32 squadId)` → **Ext clone**; `msg.sender` → `addressOwner`; optional ETH → pro-rata deposit.
+- `createSquadSponsor(...)` → hat-first clone when top hat known.
+- **FCFS paymaster stake ops (MVP):** `addPaymasterStake` / `unlockPaymasterStake` / `withdrawPaymasterStake` / `withdrawPaymasterDeposit`. Single `paymasterStaker` slot; initial stake ≥ `0.1 ether` and delay ≥ `1 days`. Staker controls EP stake lifecycle and `withdrawTo` forwards. Anyone may still call `paymaster.deposit()` directly.
 - `createSquadSponsor(bytes32 squadId, topHatId, registry, customEligibleHats)` → **hat-first Sponsor clone** when hats are known at bootstrap.
 - Registry: `squadId` → `{ sponsor, variant, topHatId }`; `squadIdBySponsor` reverse lookup.
 - `hats()` returns `SquadSponsorConstants.HATS_ADDRESS` (not a constructor arg).
@@ -260,7 +262,7 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
 
 1. Decode `squadId`, `sponsor`, `member` from `paymasterAndData`.
 2. **`_validateRegistry`** — `factory.squads(squadId).sponsor == sponsor`.
-3. Check `sponsor.balance >= maxCost × 115%` headroom.
+3. Check `sponsor.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
 4. **Member binding:** if `userOp.sender` is EOA (`code.length == 0`), require `sender == member`; smart accounts skip binding (Safe signer mapping **deferred**).
 5. **`sponsor.isEligible(member)`** — Ext address list or hat rules on same clone.
 6. `postOp` (success only) → `sponsor.spendGas(actualGasCost)`.
@@ -541,7 +543,9 @@ Remove boilerplate `Greeter` when implementing.
 ### Phase 2 — SquadSponsor hat path + ERC-4337 paymaster
 
 - ✅ `SquadSponsor`: PactoGov (crew + captain) + custom eligible hat list.
-- ✅ `PactoSponsorPaymaster`: registry check, pool headroom, `paymasterAndData` v1 decode, EOA `sender == member` binding.
+- ✅ `PactoSponsorPaymaster`: registry check, `spendablePoolWei` headroom (no `BALANCE`), `paymasterAndData` v1 decode, EOA `sender == member` binding.
+- ✅ `SquadSponsorFactory` FCFS paymaster stake: `addPaymasterStake` / `unlockPaymasterStake` / `withdrawPaymasterStake` / `withdrawPaymasterDeposit` (staker controls `withdrawTo`).
+- ✅ `SquadSponsorBase.spendablePoolWei` storage accounting on deposit / withdraw / spendGas.
 - ✅ Unit tests: pool accounting; Ext → `postInitialize` → hats; paymaster validation (**77** unit tests).
 - ✅ **Integration scaffold:** `IntegrationBase` + `SponsorDeploy` (same CREATE2 path as `script/Deploy.sol`); `E2E*` smoke on mainnet fork (`DEFAULT_MAINNET_FORK_BLOCK = 22_900_000`).
 - [ ] **Integration / e2e:** sponsored UserOp through EntryPoint on fork; Safe Path A signer validation.
