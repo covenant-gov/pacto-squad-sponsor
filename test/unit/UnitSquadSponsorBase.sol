@@ -35,7 +35,7 @@ abstract contract UnitSquadSponsorBase is Test {
       abi.encode(true)
     );
 
-    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT));
+    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
     _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
   }
 

@@ -14,7 +14,8 @@ address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0
 
 /// @notice Public chain constants and deployed contract addresses.
 /// @dev Private values (RPC URLs, API keys, deployer keystore names) live in `.env` only.
-/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint)`; paymaster is created in the factory constructor.
+/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint, allowed7702)`;
+/// paymaster is created in the factory constructor. Deploy `PactoSimple7702Account` first and set `PACTO_7702_ACCOUNT`.
 /// Hats is not a constructor arg — it is baked into sponsor bytecode via `SquadSponsorConstants.HATS_ADDRESS`.
 library Constants {
   /**

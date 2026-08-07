@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {PactoSimple7702Account} from 'contracts/PactoSimple7702Account.sol';
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
+import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
@@ -145,6 +147,72 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     assertEq(_validationData, 0);
   }
 
+  function test_Unit_Paymaster_Validates7702SenderWithAllowlistedImpl() external {
+    PactoSimple7702Account _accountImpl = new PactoSimple7702Account();
+    _redeployFactoryWith7702(address(_accountImpl));
+
+    _sponsor = _factory.createSquadSponsorExt{value: 5 ether}(_squadId, address(this));
+    SquadSponsorExt(payable(_sponsor)).setPermittedAddress(_member, true);
+
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_accountImpl)));
+
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
+
+    vm.prank(_ENTRY_POINT);
+    (, uint256 _validationData) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+
+    assertEq(_validationData, 0);
+    assertEq(_paymaster.ALLOWED_7702_IMPLEMENTATION(), address(_accountImpl));
+  }
+
+  function test_Unit_Paymaster_Rejects7702WrongImplementation() external {
+    PactoSimple7702Account _allowed = new PactoSimple7702Account();
+    PactoSimple7702Account _other = new PactoSimple7702Account();
+    _redeployFactoryWith7702(address(_allowed));
+
+    _sponsor = _factory.createSquadSponsorExt{value: 5 ether}(_squadId, address(this));
+    SquadSponsorExt(payable(_sponsor)).setPermittedAddress(_member, true);
+
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_other)));
+
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
+
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_Invalid7702Implementation.selector, address(_other)));
+    _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+  }
+
+  function test_Unit_Paymaster_Rejects7702WhenAllowlistUnset() external {
+    // Default fixture: ALLOWED_7702_IMPLEMENTATION == address(0)
+    PactoSimple7702Account _accountImpl = new PactoSimple7702Account();
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_accountImpl)));
+
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
+
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(
+      abi.encodeWithSelector(ISquadSponsorCommon.SS_Invalid7702Implementation.selector, address(_accountImpl))
+    );
+    _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+  }
+
+  function test_Unit_Paymaster_Rejects7702MemberBindingMismatch() external {
+    PactoSimple7702Account _accountImpl = new PactoSimple7702Account();
+    _redeployFactoryWith7702(address(_accountImpl));
+
+    _sponsor = _factory.createSquadSponsorExt{value: 5 ether}(_squadId, address(this));
+    address _other = makeAddr('otherMember');
+    SquadSponsorExt(payable(_sponsor)).setPermittedAddress(_other, true);
+
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_accountImpl)));
+
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _other);
+
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_InvalidMemberBinding.selector, _member, _other));
+    _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+  }
+
   function test_Unit_Paymaster_PostOpSkipsOnRevert() external {
     PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
 
@@ -159,7 +227,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
 
   function test_Unit_Paymaster_ConstructorRevertsZeroFactory() external {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)));
+    new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)), address(0));
   }
 
   function _buildUserOp(address sender, address member) internal view returns (PackedUserOperation memory userOp) {
@@ -178,5 +246,11 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     bytes memory _header = abi.encodePacked(address(_paymaster), uint128(100_000), uint128(50_000));
     userOp.sender = sender;
     userOp.paymasterAndData = bytes.concat(_header, _payload);
+  }
+
+  function _redeployFactoryWith7702(address allowed7702) internal {
+    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), allowed7702);
+    _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
+    vm.deal(address(this), 5 ether);
   }
 }

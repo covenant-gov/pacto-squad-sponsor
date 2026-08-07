@@ -161,11 +161,17 @@ interface ISquadSponsorCommon {
   error SS_CloneMismatch(bytes32 squadId);
 
   /**
-   * @notice EOA senders must use themselves as the eligibility member.
+   * @notice EOA and EIP-7702 senders must use themselves as the eligibility member.
    * @param sender `userOp.sender` for the UserOperation.
    * @param member Member address supplied in `paymasterAndData`.
    */
   error SS_InvalidMemberBinding(address sender, address member);
+
+  /**
+   * @notice EIP-7702 delegated implementation is not the allowlisted account.
+   * @param implementation Address extracted from the `0xef0100` delegation stub.
+   */
+  error SS_Invalid7702Implementation(address implementation);
 
   /**
    * @notice Paymaster stake slot is already held by another address.

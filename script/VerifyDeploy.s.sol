@@ -34,8 +34,9 @@ contract VerifyDeploy is Script {
     address _entryPoint = _json.readAddress('.entryPoint');
     address _factory = _json.readAddress('.squadSponsorFactory');
     ISquadSponsorFactory _factoryContract = ISquadSponsorFactory(_factory);
-    bytes memory _encFactory = abi.encode(IEntryPoint(_entryPoint));
-    bytes memory _encPaymaster = abi.encode(IEntryPoint(_entryPoint), _factoryContract);
+    address _allowed7702 = vm.envOr('PACTO_7702_ACCOUNT', address(0));
+    bytes memory _encFactory = abi.encode(IEntryPoint(_entryPoint), _allowed7702);
+    bytes memory _encPaymaster = abi.encode(IEntryPoint(_entryPoint), _factoryContract, _allowed7702);
     bytes memory _encEmpty = new bytes(0);
 
     console.log('Verifying sponsor contracts on', _chain);
