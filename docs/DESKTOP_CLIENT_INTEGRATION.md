@@ -27,7 +27,8 @@ A UserOp is sponsored when **all** of the following hold:
    - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears captain or crew hat from `NavePirataRegistry.deployment(topHatId)`, or a configured `customEligibleHats` hat.
 4. Member binding:
    - **EOA sender** (`userOp.sender.code.length == 0`): `sender == member` (else hard revert `SS_InvalidMemberBinding`).
-   - **Smart-account sender** (code present, including EIP-7702-delegated EOAs): binding skipped; eligibility is evaluated on `member` only. Safe signer → `member` mapping is **deferred** (not enforced on-chain yet).
+   - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s immutable `ALLOWED_7702_IMPLEMENTATION` (else `SS_Invalid7702Implementation`). Pin that address from [`deployments/<chainId>/eip7702-account.json`](../deployments/11155111/eip7702-account.json).
+   - **Other smart-account sender** (Safe, etc.): binding skipped; eligibility is evaluated on `member` only. Safe signer → `member` mapping is **deferred** (not enforced on-chain yet).
 
 Hat wearers with **0 native ETH** are exactly the clients this path serves: gas comes from the squad pool via `spendGas` in `postOp`, not from the roster key balance.
 
@@ -40,12 +41,22 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 | Path | Status | Notes |
 |------|--------|--------|
 | **ERC-4337 UserOp + `PactoSponsorPaymaster`** | **Supported** | Required for all sponsored gov writes. |
-| **EOA + EIP-7702 delegation** then UserOp | **Supported transport for roster EOAs** | Bare EOAs cannot implement `validateUserOp`. App must set-code (7702) to an ERC-4337 account implementation, then submit a UserOp with `sender == member == roster EVM`. |
+| **EOA + EIP-7702 → `PactoSimple7702Account`** then UserOp | **Supported transport for roster EOAs** | Bare EOAs cannot implement `validateUserOp`. App set-codes to the Pacto-owned impl in `eip7702-account.json`, then submits a UserOp with `sender == member == roster EVM`. |
 | **ERC-4337 smart account as `sender`** (e.g. Safe + 4337 module) | **Supported** | Put the eligible hat wearer / Ext member in `PaymasterData.member`. Signer→member proof is deferred. |
 | Bare EOA as UserOp `sender` without 7702 / account code | **Not executable** | EntryPoint cannot validate the op. |
 | Legacy `eth_sendTransaction` from roster key | **Not sponsored** | Current app failure mode (`insufficient funds`). |
 
-**Paymaster note on 7702:** After successful 7702 set-code, `sender.code.length > 0`, so the paymaster treats the address as a **smart-account sender** (skips `sender == member`). Until a `walletImplementation` allowlist lands (see TECH_SPEC D13 / deferred items), clients **must** still set `member` to the eligible roster address and must not rely on paymaster-side 7702 allowlisting.
+**Paymaster note on 7702:** After successful 7702 set-code, the sender has designated code `0xef0100 || PactoSimple7702Account`. The paymaster **still** requires `sender == member` and that the delegated implementation matches `ALLOWED_7702_IMPLEMENTATION` (wired at factory/paymaster deploy via `PACTO_7702_ACCOUNT`). Other contract wallets (non-7702) keep the deferred Safe-style path.
+
+**Client signing contract (PactoSimple7702Account):**
+
+| Concern | Value |
+|---------|--------|
+| Set-code target | `pactoSimple7702Account` in [`eip7702-account.json`](../deployments/11155111/eip7702-account.json) |
+| EntryPoint | `0x0000000071727De22E5E9d8BAf0edAc6f37da032` |
+| Nonce | `entryPoint.getNonce(sender, key=0)` |
+| Signature | Raw 65-byte ECDSA over EntryPoint `getUserOpHash` (Electrum `v` 27/28) — **not** `personal_sign`, **not** Alchemy MAv2 `0xFF\|\|0x00\|\|…` packing |
+| Calldata | `execute(address,uint256,bytes)` wrapping the gov module call |
 
 **Safe 4337 module:** Not pinned in this repo yet (`safe4337Module` is `address(0)` in `Constants.sol`). Pin per chain from Safe docs when Path A is wired in the app.
 
@@ -53,22 +64,25 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 
 ## 3. Addresses (Sepolia)
 
-Source of truth for deployed Sepolia system contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).  
-Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id `11155111`).
+Source of truth for deployed Sepolia **sponsor** contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).  
+Source of truth for the **EIP-7702 account** implementation: [`deployments/11155111/eip7702-account.json`](../deployments/11155111/eip7702-account.json) (publish after `pnpm deploy:7702:sepolia`).  
+Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id `11155111`), including `erc4337.accountImplementation`.
 
 | Role | Address |
 |------|---------|
 | EntryPoint v0.7 | `0x0000000071727De22E5E9d8BAf0edAc6f37da032` |
-| `SquadSponsorFactory` | `0x032e84cff3b32c221f8F93e4839Fa5715638ae08` |
-| `PactoSponsorPaymaster` | `0xF7f557a9443671EB0f5a3F1b233Ac44A9eDa24B8` |
-| Sponsor implementation | `0x712b49AC221Df7b445eCDd25B681c3BD92Fcb2E8` |
-| Ext implementation | `0x143c0a014CBF9Bfab5aFF886A004B8b393Bc878a` |
+| `PactoSimple7702Account` | see `eip7702-account.json` (deploy before full-system cutover) |
+| `SquadSponsorFactory` | see `full-system.json` |
+| `PactoSponsorPaymaster` | see `full-system.json` |
+| Sponsor / Ext implementations | see `full-system.json` |
 | `NavePirataRegistry` | `0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f` |
 | Hats Protocol v1 | `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137` |
 
-**Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster are not deployed in-repo yet (`address(0)` in `script/Constants.sol`).
+**Deploy order:** (1) `pnpm deploy:7702:sepolia` → commit `eip7702-account.json`; (2) set `PACTO_7702_ACCOUNT=<addr>` → `pnpm deploy:sepolia` so the paymaster allowlists that impl.
 
-**Greenfield after stake/`spendablePoolWei` redeploy:** A new factory creates a new paymaster. Existing Sepolia clones were initialized with the old paymaster and are **not** reusable — recreate squad sponsors after publishing new addresses. Until redeploy, treat the table above as historical; prefer `deployments/11155111/full-system.json` after you update it.
+**Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster / 7702 account are not deployed in-repo yet until you broadcast.
+
+**Greenfield after stake/`spendablePoolWei` / 7702 allowlist redeploy:** A new factory creates a new paymaster. Existing Sepolia clones were initialized with the old paymaster and are **not** reusable — recreate squad sponsors after publishing new addresses. Prefer the JSON artifacts over any stale markdown tables.
 
 Per-squad clone addresses come from factory create / app deploy flow — look up with `factory.squads(squadId)` or `factory.squadIdBySponsor(sponsor)`.
 
@@ -145,7 +159,7 @@ Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or
 1. Parse payload → wrong version **reverts** `SS_InvalidVersion`.
 2. `factory.squads(squadId).sponsor == sponsor` → else **revert** `SS_CloneMismatch`.
 3. `sponsor.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
-4. Eligibility / binding → soft-fail `1` or hard revert `SS_InvalidMemberBinding` (EOA mismatch).
+4. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), or hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted).
 5. Success: `context = abi.encode(sponsor)`, `validationData = 0`.
 6. On `postOp` with `opSucceeded` only: `sponsor.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
 
@@ -161,12 +175,13 @@ The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlist
 
 1. Resolve `squadId` and registered `sponsor` (factory registry). Confirm `sponsor.isEligible(captainEoa)`.
 2. Ensure pool headroom: `sponsor.spendablePoolWei() >= requiredBalance` (see §7).
-3. If the roster key still has empty code: submit **EIP-7702 authorization** delegating to the app’s pinned ERC-4337 account implementation (one-time / as needed).
+3. If the roster key still has empty code: submit **EIP-7702 authorization** delegating to `PactoSimple7702Account` from `eip7702-account.json` (one-time / as needed).
 4. Build a packed UserOperation:
    - `sender` = captain roster EVM (after 7702, this is the account that validates the UserOp).
+   - `nonce` = `entryPoint.getNonce(sender, 0)`.
    - `callData` = account `execute(quartermaster, 0, bootstrapCrewCalldata)` (or Safe equivalent).
    - `paymasterAndData` = header + `abi.encode(1, squadId, sponsor, captainEoa)` with `member = captainEoa`.
-   - Sign per the account implementation / 7702 rules (not the paymaster).
+   - Sign with **bare ECDSA** over EntryPoint `getUserOpHash` (not `personal_sign` / not MAv2 packing).
 5. Submit via bundler (`eth_sendUserOperation`) to EntryPoint `0x0000000071727De22E5E9d8BAf0edAc6f37da032`.
 6. On success, EntryPoint calls paymaster `postOp` → pool pays `actualGasCost`.
 
@@ -187,7 +202,8 @@ See vector `sample_external_call_bootstrapCrew` in the golden JSON for exact hex
 |---------|------|-------|-------------|
 | `SS_InvalidVersion(version)` | Hard revert | Payload version ≠ `1` | Rebuild `paymasterAndData` with version `1`. |
 | `SS_CloneMismatch(squadId)` | Hard revert | `sponsor` ≠ `factory.squads(squadId).sponsor` | Refresh clone address from factory; never trust a client-supplied sponsor alone. |
-| `SS_InvalidMemberBinding(sender, member)` | Hard revert | EOA `sender ≠ member` | Set both to the roster EVM (eligibility subject). |
+| `SS_InvalidMemberBinding(sender, member)` | Hard revert | EOA / 7702 `sender ≠ member` | Set both to the roster EVM (eligibility subject). |
+| `SS_Invalid7702Implementation(impl)` | Hard revert | 7702 stub delegates to a non-allowlisted impl | Set-code to `pactoSimple7702Account` from `eip7702-account.json`; redeploy factory if allowlist was wrong. |
 | `validationData == 1` (`SIG_VALIDATION_FAILED`) | Soft fail | Ineligible member, `member == 0`, or `spendablePoolWei` &lt; `maxCost × 115%` | Check `isEligible(member)`; fund pool; lower gas / `maxCost`. |
 | Bundler `-32502` / banned opcode | Bundler | Paymaster unstaked or legacy `BALANCE` validation | Stake via factory (≥0.1 ETH, ≥1 day); use redeployed paymaster with `spendablePoolWei`. |
 | `SS_InsufficientBalance` | During `spendGas` | Pool drained between validation and postOp | Rare race; refund/retry after deposit. |
@@ -244,7 +260,7 @@ Gas spend reduces everyone’s withdrawable amount proportionally. Expose Treasu
 | 7702 vs 4337 | Both: **4337 UserOp is mandatory**; **7702 is the EOA transport** so roster keys can be UserOp senders. Documented above. |
 | Calldata / gas limits for `bootstrapCrew` | **None on-chain.** Client + bundler sizing only; maintain 115% pool headroom. |
 | Safe signer → `member` | **Deferred** — do not assume paymaster checks Safe owners yet. |
-| 7702 implementation allowlist | **Deferred** — pin trusted delegate in the app. |
+| 7702 implementation allowlist | **Implemented** — paymaster requires EIP-7702 stubs to delegate to `ALLOWED_7702_IMPLEMENTATION` (`PactoSimple7702Account`). |
 | Calldata allowlists | **Deferred** — app must only build permitted gov module calls. |
 
 ---

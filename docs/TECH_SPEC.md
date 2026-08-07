@@ -117,9 +117,13 @@ flowchart LR
 | **Gnosis Safe** (pause-captain, treasury) | Safe address with **4337 module enabled** | **ERC-4337** UserOp with **`userOp.sender` = Safe** + paymaster (§5.2) |
 | **Contract wallet** (other smart accounts) | `code.length > 0` (not delegation-only) | **ERC-4337** UserOp; resolve signer per account implementation |
 
-**v1 supports both EOAs and contract wallets.** Paymaster resolves the **beneficiary member** from `paymasterAndData` (see §4.2): EOA ⇒ `sender == member` enforced on-chain; smart account ⇒ `member` in payload (Safe signer → `member` mapping **deferred**). **EIP-7702** is planned for EOA transport (app + bundler); paymaster has no 7702 allowlist yet — delegated EOAs currently hit the smart-account path (`code.length > 0`).
+**v1 supports both EOAs and contract wallets.** Paymaster resolves the **beneficiary member** from `paymasterAndData` (see §4.2):
 
-Use one audited ERC-4337-compatible implementation per chain for 7702 delegation target.
+- Empty-code EOA ⇒ `sender == member`.
+- EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == ALLOWED_7702_IMPLEMENTATION` (immutable on the paymaster; set via `SquadSponsorFactory` ctor / `PACTO_7702_ACCOUNT`).
+- Other smart accounts (e.g. Safe) ⇒ `member` in payload only (signer → `member` mapping **deferred**).
+
+**EIP-7702 set-code target:** Pacto-owned [`PactoSimple7702Account`](../src/contracts/PactoSimple7702Account.sol) — storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`. Publish address in `deployments/<chainId>/eip7702-account.json`. Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
 
 References:
 
@@ -263,12 +267,16 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
 1. Decode `squadId`, `sponsor`, `member` from `paymasterAndData`.
 2. **`_validateRegistry`** — `factory.squads(squadId).sponsor == sponsor`.
 3. Check `sponsor.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
-4. **Member binding:** if `userOp.sender` is EOA (`code.length == 0`), require `sender == member`; smart accounts skip binding (Safe signer mapping **deferred**).
+4. **Member binding / 7702 allowlist:**
+   - EOA (`code.length == 0`): require `sender == member`.
+   - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION` (else `SS_Invalid7702Implementation`).
+   - Other smart accounts: skip binding (Safe signer mapping **deferred**).
 5. **`sponsor.isEligible(member)`** — Ext address list or hat rules on same clone.
 6. `postOp` (success only) → `sponsor.spendGas(actualGasCost)`.
 
-**Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps; optional `walletImplementation` (7702 delegate allowlist).
+**Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps.
 
+**Implemented for 7702:** `ALLOWED_7702_IMPLEMENTATION` on `PactoSponsorPaymaster` (factory constructor arg).
 ### 4.3 `SquadSponsorExt` + `SquadSponsor` clones (mirrors `SquadAdminExt` + `SquadAdmin`)
 
 **One minimal-proxy clone per squad** — pool and eligibility live on the same contract (`SquadSponsorBase`). `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** address.
@@ -472,7 +480,7 @@ Optional: deep link for sponsor to `deposit(squadId)` with suggested amount.
 | Reentrancy from spend | CEI; `spendGas` nonReentrant |
 | Sponsor share inflation | `mulDiv` on deposit; no donation attack without ETH |
 | Unmapped ETH lock | `saviourWithdraw` + explicit `unallocated` accounting |
-| Malicious 7702 implementation | Planned: allowlist `walletImplementation` in paymaster; app must not sign arbitrary delegation (**not implemented**) |
+| Malicious 7702 implementation | Paymaster allowlists `ALLOWED_7702_IMPLEMENTATION`; app must not sign arbitrary delegation |
 | Cross-squad drain | `squadId` in paymaster data must match linked `topHatId`; no spend without balance on that id |
 | Upgrade clone swap | Read `upgradeAt` on every validation (cache in indexer off-chain, verify on-chain) |
 

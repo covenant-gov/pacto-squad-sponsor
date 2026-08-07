@@ -39,11 +39,12 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
 
   /// @notice Full chain bootstrap: CREATE2 factory; paymaster is deployed inside the factory constructor.
   function _deployFullSystem(address entryPoint, bytes32 saltFactory, address deployer) internal virtual {
-    bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint);
+    address _allowed7702 = _allowed7702Implementation();
+    bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint, _allowed7702);
     address _predictedFactory = vm.computeCreate2Address(saltFactory, _initCodeHash, deployer);
     address _predictedPaymaster = vm.computeCreateAddress(_predictedFactory, 1);
 
-    _factory = new SquadSponsorFactory{salt: saltFactory}(IEntryPoint(entryPoint));
+    _factory = new SquadSponsorFactory{salt: saltFactory}(IEntryPoint(entryPoint), _allowed7702);
     _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
 
     require(address(_factory) == _predictedFactory, 'factory address mismatch');
@@ -52,9 +53,15 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     _deployAddrs = DeployAddresses({factory: address(_factory), paymaster: address(_paymaster)});
   }
 
-  function _factoryInitCodeHash(address entryPoint) internal pure returns (bytes32 initCodeHash) {
-    initCodeHash =
-      keccak256(abi.encodePacked(type(SquadSponsorFactory).creationCode, abi.encode(IEntryPoint(entryPoint))));
+  /// @dev Override or set `PACTO_7702_ACCOUNT` for broadcast; integration tests default to `address(0)`.
+  function _allowed7702Implementation() internal view virtual returns (address allowed7702) {
+    allowed7702 = vm.envOr('PACTO_7702_ACCOUNT', address(0));
+  }
+
+  function _factoryInitCodeHash(address entryPoint, address allowed7702) internal pure returns (bytes32 initCodeHash) {
+    initCodeHash = keccak256(
+      abi.encodePacked(type(SquadSponsorFactory).creationCode, abi.encode(IEntryPoint(entryPoint), allowed7702))
+    );
   }
 
   function _logDeployment() internal view virtual {

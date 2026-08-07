@@ -29,4 +29,11 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
    * @return version Current payload schema version.
    */
   function PAYMASTER_DATA_VERSION() external view returns (uint8 version);
+
+  /**
+   * @notice Allowed EIP-7702 account implementation (set-code target).
+   * @dev `address(0)` rejects all EIP-7702 delegated senders.
+   * @return implementation Canonical `PactoSimple7702Account` (or zero).
+   */
+  function ALLOWED_7702_IMPLEMENTATION() external view returns (address implementation);
 }

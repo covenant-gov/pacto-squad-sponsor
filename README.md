@@ -124,9 +124,15 @@ cast wallet import $SEPOLIA_DEPLOYER_NAME --interactive
 
 ### Sepolia
 
+Deploy the EIP-7702 account first, then the sponsor system (paymaster allowlists the account via `PACTO_7702_ACCOUNT`):
+
 ```bash
+pnpm deploy:7702:sepolia
+# set PACTO_7702_ACCOUNT=<pactoSimple7702Account from deployments/11155111/eip7702-account.json>
 pnpm deploy:sepolia
 ```
+
+Artifacts: `deployments/<chainId>/eip7702-account.json` and `deployments/<chainId>/full-system.json`.
 
 ### Mainnet
 

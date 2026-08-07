@@ -45,4 +45,20 @@ abstract contract DeploymentArtifacts is Script {
     string memory json = vm.serializeAddress(k, 'deployer', deployer);
     _writeDeploymentJson(json, 'full-system.json');
   }
+
+  function _writeEip7702AccountJson(
+    address entryPoint,
+    address pactoSimple7702Account,
+    bytes32 salt,
+    address deployer
+  ) internal {
+    if (!_shouldWriteDeploymentJson()) return;
+    string memory k = 'eip7702_account';
+    vm.serializeUint(k, 'chainId', block.chainid);
+    vm.serializeAddress(k, 'entryPoint', entryPoint);
+    vm.serializeAddress(k, 'pactoSimple7702Account', pactoSimple7702Account);
+    vm.serializeBytes32(k, 'salt', salt);
+    string memory json = vm.serializeAddress(k, 'deployer', deployer);
+    _writeDeploymentJson(json, 'eip7702-account.json');
+  }
 }
