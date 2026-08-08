@@ -78,7 +78,9 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 | `NavePirataRegistry` | `0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f` |
 | Hats Protocol v1 | `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137` |
 
-**Deploy order:** (1) `pnpm deploy:7702:sepolia` → commit `eip7702-account.json`; (2) set `PACTO_7702_ACCOUNT=<addr>` → `pnpm deploy:sepolia` so the paymaster allowlists that impl.
+**Deploy order (greenfield):** (1) `pnpm deploy:7702:sepolia` → commit `eip7702-account.json`; (2) `pnpm deploy:sepolia` — allowlist resolves from that artifact (or non-zero `PACTO_7702_ACCOUNT`). Do not broadcast a full-system deploy with a zero allowlist; scripts revert on live chains.
+
+**Paymaster cutover (wrong / zero allowlist):** If an existing factory/paymaster was deployed with `ALLOWED_7702_IMPLEMENTATION == address(0)`, that immutable cannot be patched. Run `pnpm cutover:paymaster:sepolia` (simulate: `pnpm simulate-cutover:paymaster:sepolia`): one forge broadcast redeploys factory+paymaster against the existing `PactoSimple7702Account` (does **not** redeploy 7702), asserts allowlist wiring, funds EntryPoint deposit + FCFS `addPaymasterStake`, and writes `full-system.json`. Optional env: `PAYMASTER_EP_DEPOSIT_WEI`, `PAYMASTER_STAKE_WEI`, `PAYMASTER_UNSTAKE_DELAY_SEC` (defaults 0.1 ETH / 0.1 ETH / 172800). After cutover, paste the new artifact into `pacto-app`’s address book (`pacto-protocol-addresses.json`); recreate squad sponsors (old clones stay wired to the dead paymaster). Separate `cast send` deposit/stake steps are unnecessary for this path.
 
 **Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster / 7702 account are not deployed in-repo yet until you broadcast.
 

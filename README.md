@@ -124,12 +124,17 @@ cast wallet import $SEPOLIA_DEPLOYER_NAME --interactive
 
 ### Sepolia
 
-Deploy the EIP-7702 account first, then the sponsor system (paymaster allowlists the account via `PACTO_7702_ACCOUNT`):
+Deploy the EIP-7702 account first, then the sponsor system (allowlist resolves from `eip7702-account.json`, or set `PACTO_7702_ACCOUNT`):
 
 ```bash
 pnpm deploy:7702:sepolia
-# set PACTO_7702_ACCOUNT=<pactoSimple7702Account from deployments/11155111/eip7702-account.json>
 pnpm deploy:sepolia
+```
+
+If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory+paymaster, fund deposit/stake; does not redeploy 7702):
+
+```bash
+pnpm cutover:paymaster:sepolia
 ```
 
 Artifacts: `deployments/<chainId>/eip7702-account.json` and `deployments/<chainId>/full-system.json`.

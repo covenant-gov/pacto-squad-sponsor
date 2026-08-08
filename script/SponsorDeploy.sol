@@ -22,6 +22,8 @@ import {console} from 'forge-std/console.sol';
  *      Paymaster address = first CREATE child of the factory (`nonce` 1).
  */
 abstract contract SponsorDeploy is Script, DeploymentArtifacts {
+  error SponsorDeploy_Zero7702Allowlist();
+
   struct DeployAddresses {
     address factory;
     address paymaster;
@@ -53,9 +55,19 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     _deployAddrs = DeployAddresses({factory: address(_factory), paymaster: address(_paymaster)});
   }
 
-  /// @dev Override or set `PACTO_7702_ACCOUNT` for broadcast; integration tests default to `address(0)`.
+  /// @dev Artifact / `PACTO_7702_ACCOUNT`; live-chain forge scripts reject `address(0)`. Tests may keep zero.
   function _allowed7702Implementation() internal view virtual returns (address allowed7702) {
-    allowed7702 = vm.envOr('PACTO_7702_ACCOUNT', address(0));
+    allowed7702 = _resolveAllowed7702Implementation();
+    if (allowed7702 == address(0) && _requireNonZero7702Allowlist()) {
+      revert SponsorDeploy_Zero7702Allowlist();
+    }
+  }
+
+  /// @dev Enforce allowlist only for script broadcasts on production / public testnets.
+  function _requireNonZero7702Allowlist() internal view virtual returns (bool) {
+    uint256 chainId = block.chainid;
+    if (chainId != 1 && chainId != 11_155_111 && chainId != 42_161) return false;
+    return _isForgeScriptContext();
   }
 
   function _factoryInitCodeHash(address entryPoint, address allowed7702) internal pure returns (bytes32 initCodeHash) {
