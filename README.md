@@ -1,128 +1,98 @@
-<img src="https://raw.githubusercontent.com/defi-wonderland/brand/v1.0.0/external/solidity-foundry-boilerplate-banner.png" alt="wonderland banner" align="center" />
-<br />
+# pacto-squad-sponsor
 
-<div align="center"><strong>Start your next Solidity project with Foundry in seconds</strong></div>
-<div align="center">A highly scalable foundation focused on DX and best practices</div>
+Collective, squad-scoped ETH gas sponsorship for [Pacto](https://github.com/covenant-gov).
 
-<br />
+Squads fund a **shared gas pool**. Eligible members use the Pacto app without holding ETH. This repo pays **gas only** — action permission stays in [pacto-gov](https://github.com/covenant-gov/pacto-gov). Transport is ERC-4337 (`PactoSponsorPaymaster`) plus EIP-7702 for roster EOAs.
 
-## Features
+v1 targets Ethereum Mainnet, Sepolia, and Arbitrum One.
 
-<dl>
-  <dt>Sample contracts</dt>
-  <dd>Basic Greeter contract with an external interface.</dd>
+## Contracts
 
-  <dt>Foundry setup</dt>
-  <dd>Foundry configuration with multiple custom profiles and remappings.</dd>
+| Contract | Role |
+|----------|------|
+| [`SquadSponsorFactory`](src/contracts/SquadSponsorFactory.sol) | Chain singleton. Deploys per-squad clones and the wired paymaster. |
+| [`PactoSponsorPaymaster`](src/contracts/PactoSponsorPaymaster.sol) | ERC-4337 EntryPoint v0.7 paymaster. Spends from the registered squad clone. |
+| [`SquadSponsorExt`](src/contracts/SquadSponsorExt.sol) | Address-based eligibility. Typical first path, before Hats exist. |
+| [`SquadSponsor`](src/contracts/SquadSponsor.sol) | Hat-based eligibility (hat-first clone, or Ext after `postInitialize`). |
+| [`PactoSimple7702Account`](src/contracts/PactoSimple7702Account.sol) | Pacto-owned EIP-7702 account implementation. |
 
-  <dt>Deployment scripts</dt>
-  <dd>Sample scripts to deploy contracts on both mainnet and testnet.</dd>
+Each squad gets one EIP-1167 clone. The clone holds that squad’s ETH and eligibility. `SquadSponsorExt.postInitialize` wires Hats on the same clone (one-way; hats override the address list).
 
-  <dt>Sample Integration, Unit, Property-based fuzzed and symbolic tests</dt>
-  <dd>Example tests showcasing mocking, assertions and configuration for mainnet forking. As well it includes everything needed in order to check code coverage.</dd>
-  <dd>Unit tests are built based on the <a href="https://twitter.com/PaulRBerg/status/1682346315806539776">Branched-Tree Technique</a>, using <a href="https://github.com/alexfertel/bulloak">Bulloak</a>.
+## Docs
 
-  <dt>Linter</dt>
-  <dd>Simple and fast solidity linting thanks to forge fmt.</dd>
-  <dd>Find missing natspec automatically.</dd>
+- [`docs/TECH_SPEC.md`](docs/TECH_SPEC.md) — product, architecture, and locked design decisions
+- [`docs/DESKTOP_CLIENT_INTEGRATION.md`](docs/DESKTOP_CLIENT_INTEGRATION.md) — ERC-4337 / 7702 client guide for `pacto-app`
+- [`docs/PACTO_GOV_FOLLOWUPS.md`](docs/PACTO_GOV_FOLLOWUPS.md) — wiring required in pacto-gov
 
-  <dt>Github workflows CI</dt>
-  <dd>Run all tests and see the coverage as you push your changes.</dd>
-  <dd>Export your Solidity interfaces and contracts as packages, and publish them to NPM.</dd>
-</dl>
+Sepolia addresses: [`deployments/11155111/full-system.json`](deployments/11155111/full-system.json) and [`deployments/11155111/eip7702-account.json`](deployments/11155111/eip7702-account.json).
 
 ## Setup
 
-1. Install Foundry by following the instructions from [their repository](https://github.com/foundry-rs/foundry#installation).
-2. Copy the `.env.example` file to `.env` and fill in the variables.
-3. Install rust dependencies with [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
+1. Install Foundry from [their repository](https://github.com/foundry-rs/foundry#installation).
+2. Copy `.env.example` to `.env` and fill in the variables.
+3. Install rust tools with [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html):
    1. `cargo install lintspec`
    2. `cargo install bulloak`
-4. Install the dependencies by running: `pnpm install`. In case there is an error with the commands, run `foundryup` and try them again.
+4. Install dependencies: `pnpm install`. If commands fail, run `foundryup` and retry.
 
 ## Build
-
-The default way to build the code is suboptimal but fast, you can run it via:
 
 ```bash
 pnpm build
 ```
 
-In order to build a more optimized code ([via IR](https://docs.soliditylang.org/en/v0.8.15/ir-breaking-changes.html#solidity-ir-based-codegen-changes)), run:
+Optimized IR build:
 
 ```bash
 pnpm build:optimized
 ```
 
-## Running tests
+## Tests
 
-Unit tests should be isolated from any externalities, while Integration usually run in a fork of the blockchain. In this boilerplate you will find example of both.
-
-In order to run both unit and integration tests, run:
+Unit tests are isolated. Integration (E2E) tests fork **mainnet**.
 
 ```bash
 pnpm test
 ```
 
-In order to just run unit tests, run:
-
 ```bash
 pnpm test:unit
 ```
-
-In order to run unit tests and run way more fuzzing than usual (5x), run:
 
 ```bash
 pnpm test:unit:deep
 ```
 
-In order to just run integration tests, run:
-
 ```bash
 pnpm test:integration
 ```
-
-In order to check your current code coverage, run:
 
 ```bash
 pnpm coverage
 ```
 
-In order to create a new `.t.sol` file from a `.tree` bulloak file, run:
+Scaffold or fix Bulloak trees:
 
 ```bash
 pnpm test:bulloak:scaffold
-```
-
-In order to fix or add missing tests to a `.t.sol` file after changing a `.tree` bulloak file, run:
-
-```bash
 pnpm test:bulloak:fix
 ```
 
-<br>
-
 ## Deploy & verify
 
-### Setup
-
-Configure the `.env` variables and source them:
+Configure `.env` and source it:
 
 ```bash
 source .env
 ```
 
-Import your private keys into Foundry's encrypted keystore:
+Import deployer keys into Foundry’s encrypted keystore:
 
 ```bash
 cast wallet import $MAINNET_DEPLOYER_NAME --interactive
-```
-
-```bash
 cast wallet import $SEPOLIA_DEPLOYER_NAME --interactive
+cast wallet import $ARBITRUM_DEPLOYER_NAME --interactive
 ```
-
-### Sepolia
 
 Deploy the EIP-7702 account first, then the sponsor system (allowlist resolves from `eip7702-account.json`, or set `PACTO_7702_ACCOUNT`):
 
@@ -131,57 +101,28 @@ pnpm deploy:7702:sepolia
 pnpm deploy:sepolia
 ```
 
-If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory+paymaster, fund deposit/stake; does not redeploy 7702):
+```bash
+pnpm deploy:7702:arbitrum
+pnpm deploy:arbitrum
+```
+
+```bash
+pnpm deploy:7702:mainnet
+pnpm deploy:mainnet
+```
+
+If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702):
 
 ```bash
 pnpm cutover:paymaster:sepolia
 ```
 
-Artifacts: `deployments/<chainId>/eip7702-account.json` and `deployments/<chainId>/full-system.json`.
+Artifacts: `deployments/<chainId>/eip7702-account.json` and `deployments/<chainId>/full-system.json`. Broadcast traces are under `./broadcast`.
 
-### Mainnet
+See the [Foundry Book](https://book.getfoundry.sh/reference/forge/forge-create.html) for extra `forge` options.
 
-```bash
-pnpm deploy:mainnet
-```
+## License
 
-The deployments are stored in ./broadcast
+MIT. See [`LICENSE`](LICENSE).
 
-See the [Foundry Book for available options](https://book.getfoundry.sh/reference/forge/forge-create.html).
-
-## Export And Publish
-
-Export TypeScript interfaces from Solidity contracts and interfaces providing compatibility with TypeChain. Publish the exported packages to NPM.
-
-To enable this feature, make sure you've set the `NPM_TOKEN` on your org's secrets. Then set the job's conditional to `true`:
-
-```yaml
-jobs:
-  export:
-    name: Generate Interfaces And Contracts
-    # Remove the following line if you wish to export your Solidity contracts and interfaces and publish them to NPM
-    if: true
-    ...
-```
-
-Also, remember to update the `package_name` param to your package name:
-
-```yaml
-- name: Export Solidity - ${{ matrix.export_type }}
-  uses: defi-wonderland/solidity-exporter-action@1dbf5371c260add4a354e7a8d3467e5d3b9580b8
-  with:
-    # Update package_name with your package name
-    package_name: "my-cool-project"
-    ...
-
-
-- name: Publish to NPM - ${{ matrix.export_type }}
-  # Update `my-cool-project` with your package name
-  run: cd export/my-cool-project-${{ matrix.export_type }} && npm publish --access public
-  ...
-```
-
-You can take a look at our [solidity-exporter-action](https://github.com/defi-wonderland/solidity-exporter-action) repository for more information and usage examples.
-
-## Licensing
-The primary license for the boilerplate is MIT, see [`LICENSE`](https://github.com/defi-wonderland/solidity-foundry-boilerplate/blob/main/LICENSE)
+Scaffolded from the [Wonderland Foundry boilerplate](https://github.com/defi-wonderland/solidity-foundry-boilerplate).
