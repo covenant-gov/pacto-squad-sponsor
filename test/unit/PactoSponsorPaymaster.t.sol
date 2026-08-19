@@ -225,6 +225,28 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     assertEq(address(_sponsor).balance, 5 ether);
   }
 
+  function test_Unit_Paymaster_ValidatesWarGameSquadIdWhileParentHatsWired() external {
+    uint256[] memory _customHats = new uint256[](1);
+    _customHats[0] = 0xC001;
+    SquadSponsorExt(payable(_sponsor)).postInitialize(0x100, address(0), _customHats);
+
+    vm.deal(address(this), 5 ether);
+    (address _gameSponsor,, bytes32 _gameSquadId) =
+      _factory.createWarGameSponsorExt{value: 5 ether}(_squadId, address(this));
+    address _gameMember = makeAddr('warGameMember');
+    SquadSponsorExt(payable(_gameSponsor)).setPermittedAddress(_gameMember, true);
+
+    PackedUserOperation memory _gameOp = _buildUserOpFor(_gameMember, _gameSquadId, _gameSponsor, _gameMember);
+    vm.prank(_ENTRY_POINT);
+    (, uint256 _gameValidation) = _paymaster.validatePaymasterUserOp(_gameOp, bytes32(0), 1 ether);
+    assertEq(_gameValidation, 0);
+
+    PackedUserOperation memory _parentOp = _buildUserOp(_gameMember, _gameMember);
+    vm.prank(_ENTRY_POINT);
+    (, uint256 _parentValidation) = _paymaster.validatePaymasterUserOp(_parentOp, bytes32(0), 1 ether);
+    assertEq(_parentValidation, SIG_VALIDATION_FAILED);
+  }
+
   function test_Unit_Paymaster_ConstructorRevertsZeroFactory() external {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)), address(0));
@@ -242,7 +264,16 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     address member,
     address sponsor
   ) internal view returns (PackedUserOperation memory userOp) {
-    bytes memory _payload = abi.encode(uint8(_paymaster.PAYMASTER_DATA_VERSION()), _squadId, sponsor, member);
+    userOp = _buildUserOpFor(sender, _squadId, sponsor, member);
+  }
+
+  function _buildUserOpFor(
+    address sender,
+    bytes32 squadId,
+    address sponsor,
+    address member
+  ) internal view returns (PackedUserOperation memory userOp) {
+    bytes memory _payload = abi.encode(uint8(_paymaster.PAYMASTER_DATA_VERSION()), squadId, sponsor, member);
     bytes memory _header = abi.encodePacked(address(_paymaster), uint128(100_000), uint128(50_000));
     userOp.sender = sender;
     userOp.paymasterAndData = bytes.concat(_header, _payload);

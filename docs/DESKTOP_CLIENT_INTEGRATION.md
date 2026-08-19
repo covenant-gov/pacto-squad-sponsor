@@ -88,6 +88,28 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 
 Per-squad clone addresses come from factory create / app deploy flow — look up with `factory.squads(squadId)` or `factory.squadIdBySponsor(sponsor)`.
 
+### War-game vs production `squadId`
+
+| Channel | Registry `squadId` | Create |
+|---------|--------------------|--------|
+| `squad-dashboard` (real gov) | `parentSquadId = keccak256(parentId)` | `createSquadSponsorExt(parentSquadId, owner)` |
+| `squad-wargame` (round N) | `factory.warGameSquadId(parentSquadId, N)` | `createWarGameSponsorExt(parentSquadId, owner)` |
+
+War-game UserOps must encode the **round** `squadId` and that round’s clone. Using `parentSquadId` after production `postInitialize` gates gas on the **production** hat tree, not the game tree.
+
+**War-game deploy sequence (mirrors real gov):**
+
+1. If `factory.squads(parentSquadId).sponsor == 0`, create/fund the parent Ext (pays bootstrap UserOps before round hats exist).
+2. `createWarGameSponsorExt(parentSquadId, addressOwner)` (optional `msg.value` funds the round pool). Persist `round`, `gameSquadId`, `sponsor`.
+3. `setPermittedAddress` for members who will deploy/bootstrap this round (Ext gas).
+4. Deploy the war-game gov stack (`stackKind = WarGame`).
+5. `postInitialize(topHatId, warGameRegistryOrZero, customHats)` on the **round** Ext clone only — never on the parent clone.
+6. After wiring, `squad-wargame` UserOps use `gameSquadId` + round sponsor; eligibility is this round’s captain/crew hats.
+
+On redeploy: call `createWarGameSponsorExt` again (new round). Prompt withdraw of remaining shares on the retired round clone.
+
+Until a factory+paymaster cutover lands the new methods on Sepolia, the app may emulate step 2 with `createSquadSponsorExt(keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round)))` and an off-chain round counter (weaker: rounds are not canonical on-chain).
+
 ---
 
 ## 3.1 Funding buckets (protocol ops vs squad)
@@ -270,7 +292,7 @@ Gas spend reduces everyone’s withdrawable amount proportionally. Expose Treasu
 ## 10. Client checklist (`pacto-app`)
 
 1. Stop using `send_transaction` for hat-gated gov writes when the roster key has insufficient ETH and a squad sponsor exists.
-2. Load `squadId`, `sponsor`, EntryPoint, paymaster from protocol addresses + factory.
+2. Load `squadId`, `sponsor`, EntryPoint, paymaster from protocol addresses + factory. For `squad-wargame`, use `warGameSquadId(parentSquadId, round)` (not `keccak256(parentId)`).
 3. Encode `paymasterAndData` (TS helper or golden vectors).
 4. Build UserOp `callData` via account `execute` → gov module ABI.
 5. Ensure 7702 delegation (EOA) or Safe 4337 path (smart account).

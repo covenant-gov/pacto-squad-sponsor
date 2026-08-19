@@ -19,6 +19,16 @@ When `NavePirataFactory.deployNavePirata` (or equivalent) completes for a squad:
 
 **Effect:** Hat-based eligibility (`SquadSponsor` base) activates for that squad and **overrides** address-based entries on the pre-deployed Ext. Vault `topHatId` link set in same flow.
 
+### 1.1 War-game (`stackKind = WarGame`)
+
+Do **not** resolve or `postInitialize` the production clone (`keccak256(parentId)` / parent `squadId`). Each war-game deploy must:
+
+1. Use the Ext clone created by `SquadSponsorFactory.createWarGameSponsorExt(parentSquadId, addressOwner)` for this round (`factory.warGameSquadId(parentSquadId, round)`).
+2. After the game Hats tree exists, call `extClone.postInitialize(topHatId, registry, customHats)` on **that round clone only**.
+3. `registry` should be `WarGameRegistry` if it exposes the same `deployment(topHatId)` shape as `NavePirataRegistry`; otherwise pass `address(0)` and captain/crew ids in `customEligibleHats`.
+
+Replay = a new `createWarGameSponsorExt` (new round), not a second `postInitialize` on an old clone. Never hats-wire the parent clone to a throwaway game tree.
+
 ---
 
 ## 2. Deploy / record `SquadSponsor` (base) at gov deploy
@@ -93,6 +103,7 @@ See sponsor spec §5.2 (D18).
 - [ ] **Mainnet fork** test (D19): pool funded on Ext **before** gov → `deployNavePirata` → `postInitialize` → hat wearer sponsored.
 - [ ] Squads without gov deploy continue on Ext address mode only.
 - [ ] Custom hat tree (no full PactoGov): same **`postInitialize`** pattern as **`PactoAdmin`** — norm in pacto-gov today.
+- [ ] War-game deploy wires **round** Ext clone only; production `keccak256(parentId)` clone `topHatId` unchanged.
 
 ---
 
