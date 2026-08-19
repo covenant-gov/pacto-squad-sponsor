@@ -25,6 +25,9 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   uint32 public constant MIN_UNSTAKE_DELAY_SEC = 1 days;
 
   /// @inheritdoc ISquadSponsorFactory
+  bytes32 public constant WAR_GAME_NS = keccak256('pacto.sponsor.wargame');
+
+  /// @inheritdoc ISquadSponsorFactory
   address public immutable PAYMASTER;
 
   /// @inheritdoc ISquadSponsorFactory
@@ -39,6 +42,9 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   mapping(bytes32 squadId => SquadRecord record) internal _squads;
   /// @inheritdoc ISquadSponsorFactory
   mapping(address sponsor => bytes32 squadId) public squadIdBySponsor;
+
+  /// @inheritdoc ISquadSponsorFactory
+  mapping(bytes32 parentSquadId => uint256 count) public warGameRoundCount;
 
   /*///////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -89,6 +95,26 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
 
     _registerSquad(squadId, sponsor, SquadVariant.SPONSOR, topHatId, msg.sender);
     _depositIfAny(sponsor);
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
+  function createWarGameSponsorExt(
+    bytes32 parentSquadId,
+    address addressOwner
+  ) external payable returns (address sponsor, uint256 round, bytes32 gameSquadId) {
+    if (parentSquadId == bytes32(0)) revert SS_ZeroField('parentSquadId');
+    if (addressOwner == address(0)) revert SS_ZeroAddress();
+
+    round = ++warGameRoundCount[parentSquadId];
+    gameSquadId = warGameSquadId(parentSquadId, round);
+    if (_squads[gameSquadId].sponsor != address(0)) revert SS_SquadAlreadyExists(gameSquadId);
+
+    sponsor = Clones.cloneDeterministic(extImplementation, gameSquadId);
+    SquadSponsorExt(payable(sponsor)).initialize(gameSquadId, PAYMASTER, address(this), addressOwner);
+
+    _registerSquad(gameSquadId, sponsor, SquadVariant.EXT, 0, addressOwner);
+    _depositIfAny(sponsor);
+    emit WarGameSponsorCreated(parentSquadId, round, gameSquadId, sponsor);
   }
 
   /// @inheritdoc ISquadSponsorFactory
@@ -160,8 +186,18 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   }
 
   /// @inheritdoc ISquadSponsorFactory
+  function predictWarGameSponsor(bytes32 parentSquadId, uint256 round) external view returns (address sponsor) {
+    sponsor = Clones.predictDeterministicAddress(extImplementation, warGameSquadId(parentSquadId, round));
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
   function hats() external pure returns (address _hats) {
     _hats = SquadSponsorConstants.HATS_ADDRESS;
+  }
+
+  /// @inheritdoc ISquadSponsorFactory
+  function warGameSquadId(bytes32 parentSquadId, uint256 round) public pure returns (bytes32 gameSquadId) {
+    gameSquadId = keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round));
   }
 
   /*///////////////////////////////////////////////////////////////

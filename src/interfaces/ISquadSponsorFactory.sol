@@ -52,6 +52,20 @@ interface ISquadSponsorFactory is ISquadSponsorCommon {
   ) external payable returns (address sponsor);
 
   /**
+   * @notice Deploy a war-game Ext clone for the next round of `parentSquadId`.
+   * @dev Optional ETH credits sponsor shares to `msg.sender`. Does not register or wire `parentSquadId`.
+   * @param parentSquadId Production squad identifier (`keccak256(parentId)`).
+   * @param addressOwner Non-zero Ext eligibility admin for this round clone.
+   * @return sponsor New Ext clone address.
+   * @return round 1-indexed round assigned to this clone.
+   * @return gameSquadId Derived registry id (`warGameSquadId(parentSquadId, round)`).
+   */
+  function createWarGameSponsorExt(
+    bytes32 parentSquadId,
+    address addressOwner
+  ) external payable returns (address sponsor, uint256 round, bytes32 gameSquadId);
+
+  /**
    * @notice Callback from a sponsor clone after successful hat wiring.
    * @param squadId Squad identifier.
    * @param topHatId Linked top hat id.
@@ -142,4 +156,33 @@ interface ISquadSponsorFactory is ISquadSponsorCommon {
    * @return squadId Bound squad id.
    */
   function squadIdBySponsor(address sponsor) external view returns (bytes32 squadId);
+
+  /**
+   * @notice Namespace mixed into war-game `squadId` derivation.
+   * @return namespace `keccak256("pacto.sponsor.wargame")`.
+   */
+  function WAR_GAME_NS() external view returns (bytes32 namespace);
+
+  /**
+   * @notice Number of war-game rounds created for `parentSquadId`.
+   * @param parentSquadId Production squad identifier.
+   * @return count Highest assigned round (0 if none).
+   */
+  function warGameRoundCount(bytes32 parentSquadId) external view returns (uint256 count);
+
+  /**
+   * @notice Derived registry id for a war-game round clone.
+   * @param parentSquadId Production squad identifier.
+   * @param round 1-indexed war-game round.
+   * @return gameSquadId `keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round))`.
+   */
+  function warGameSquadId(bytes32 parentSquadId, uint256 round) external view returns (bytes32 gameSquadId);
+
+  /**
+   * @notice CREATE2 address for a war-game Ext clone (whether or not it exists).
+   * @param parentSquadId Production squad identifier.
+   * @param round 1-indexed war-game round.
+   * @return sponsor Predicted clone address.
+   */
+  function predictWarGameSponsor(bytes32 parentSquadId, uint256 round) external view returns (address sponsor);
 }

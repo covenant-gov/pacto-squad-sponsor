@@ -65,6 +65,17 @@ interface ISquadSponsorCommon {
   event SquadCreated(bytes32 indexed squadId, address sponsor, SquadVariant variant, address indexed addressOwner);
 
   /**
+   * @notice A war-game Ext clone was created for a parent squad round.
+   * @param parentSquadId Production squad identifier (`keccak256(parentId)`).
+   * @param round 1-indexed war-game round for this parent.
+   * @param gameSquadId Derived registry id for this round's clone.
+   * @param sponsor New Ext clone address.
+   */
+  event WarGameSponsorCreated(
+    bytes32 indexed parentSquadId, uint256 round, bytes32 indexed gameSquadId, address indexed sponsor
+  );
+
+  /**
    * @notice An address was added or removed from the Ext permit list.
    * @param member Address whose permit status changed.
    * @param permitted True when added to the list, false when removed.

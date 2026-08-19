@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
+import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
@@ -125,6 +126,26 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
     (, uint256 _validationData) = _validatePaymaster(_userOp, 0.8 ether);
 
     assertEq(_validationData, 0);
+  }
+
+  function test_e2e_validatePaymasterUserOp_succeedsForWarGameSquadIdWhileParentHatsWired() public withWiredExtSquad {
+    vm.deal(_addressOwner, 10 ether);
+    vm.prank(_addressOwner);
+    (address _gameSponsor,, bytes32 _gameSquadId) =
+      _factory.createWarGameSponsorExt{value: _E2E_POOL_DEPOSIT}(_squadId, _addressOwner);
+    SquadSponsorExt _gameExt = SquadSponsorExt(payable(_gameSponsor));
+
+    address _gameMember = makeAddr('e2eWarGameMember');
+    vm.prank(_addressOwner);
+    _gameExt.setPermittedAddress(_gameMember, true);
+
+    PackedUserOperation memory _userOp = _buildUserOp(_gameMember, _gameSquadId, _gameSponsor, _gameMember);
+    (, uint256 _validationData) = _validatePaymaster(_userOp, 1 ether);
+    assertEq(_validationData, 0);
+
+    PackedUserOperation memory _parentOp = _buildExtUserOp(_gameMember, _gameMember);
+    (, uint256 _parentValidation) = _validatePaymaster(_parentOp, 1 ether);
+    assertEq(_parentValidation, SIG_VALIDATION_FAILED);
   }
 
   /*///////////////////////////////////////////////////////////////

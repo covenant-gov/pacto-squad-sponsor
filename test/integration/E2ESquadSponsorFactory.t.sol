@@ -188,6 +188,70 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
   }
 
   /*///////////////////////////////////////////////////////////////
+                        createWarGameSponsorExt
+  //////////////////////////////////////////////////////////////*/
+
+  function test_e2e_createWarGameSponsorExt_deploysCloneWithoutRegisteringParent() public {
+    bytes32 _parentId = _freshSquadId();
+    _fund(_creator, 1 ether);
+
+    vm.prank(_creator);
+    (address _sponsor, uint256 _round, bytes32 _gameSquadId) = _factory.createWarGameSponsorExt(_parentId, _rosterOwner);
+
+    assertEq(_round, 1);
+    assertEq(_gameSquadId, _factory.warGameSquadId(_parentId, 1));
+    assertEq(_sponsor, _factory.predictWarGameSponsor(_parentId, 1));
+    assertGt(_sponsor.code.length, 0);
+    assertEq(_factory.squads(_gameSquadId).sponsor, _sponsor);
+    assertEq(_factory.squads(_parentId).sponsor, address(0));
+    assertEq(uint256(_factory.squads(_gameSquadId).variant), uint256(ISquadSponsorCommon.SquadVariant.EXT));
+  }
+
+  function test_e2e_createWarGameSponsorExt_twoRoundsIsolatedFromParent() public {
+    bytes32 _parentId = _freshSquadId();
+    _fund(_creator, 2 ether);
+
+    vm.prank(_creator);
+    address _parent = _factory.createSquadSponsorExt(_parentId, _creator);
+
+    vm.startPrank(_rosterOwner);
+    vm.deal(_rosterOwner, 1 ether);
+    (address _first, uint256 _round1, bytes32 _id1) = _factory.createWarGameSponsorExt(_parentId, _rosterOwner);
+    (address _second, uint256 _round2, bytes32 _id2) = _factory.createWarGameSponsorExt(_parentId, _rosterOwner);
+
+    uint256[] memory _customHats = new uint256[](0);
+    SquadSponsorExt(payable(_first)).postInitialize(_E2E_TOP_HAT_ID, address(0), _customHats);
+    vm.stopPrank();
+
+    assertEq(_round1, 1);
+    assertEq(_round2, 2);
+    assertTrue(_first != _second);
+    assertTrue(_first != _parent);
+    assertEq(_factory.squads(_parentId).sponsor, _parent);
+    assertEq(_factory.squads(_id1).topHatId, _E2E_TOP_HAT_ID);
+    assertEq(_factory.squads(_id2).topHatId, 0);
+    assertFalse(SquadSponsorExt(payable(_second)).hatsWired());
+    assertFalse(SquadSponsorExt(payable(_parent)).hatsWired());
+  }
+
+  function test_e2e_createWarGameSponsorExt_withDepositCreditsFunderShares() public {
+    bytes32 _parentId = _freshSquadId();
+    _fund(_creator, 3 ether);
+
+    vm.prank(_creator);
+    (address _sponsor,,) = _factory.createWarGameSponsorExt{value: 3 ether}(_parentId, _rosterOwner);
+
+    assertEq(address(_sponsor).balance, 3 ether);
+    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
+    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+  }
+
+  function test_e2e_createWarGameSponsorExt_revertsOnZeroParent() public {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
+    _factory.createWarGameSponsorExt(bytes32(0), _rosterOwner);
+  }
+
+  /*///////////////////////////////////////////////////////////////
                         constructor
   //////////////////////////////////////////////////////////////*/
 
