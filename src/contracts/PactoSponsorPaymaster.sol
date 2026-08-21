@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
 import {BasePaymaster} from '@account-abstraction/core/BasePaymaster.sol';
 import {SIG_VALIDATION_FAILED} from '@account-abstraction/core/Helpers.sol';
@@ -14,7 +15,7 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
 /**
  * @title PactoSponsorPaymaster
  * @author Pacto
- * @notice ERC-4337 paymaster that validates squad clone registry, spendable pool headroom, and eligibility.
+ * @notice ERC-4337 paymaster that validates squad clone registry, pool slot, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
  *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION`.
  */
@@ -59,7 +60,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
                             LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  /// @notice Accepts ETH refunded from squad clones after `spendGas`.
+  /// @notice Accepts ETH refunded from squad pools after `spendGas`.
   receive() external payable {}
 
   /*///////////////////////////////////////////////////////////////
@@ -70,8 +71,8 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
     if (mode != PostOpMode.opSucceeded) return;
 
-    address _sponsor = abi.decode(context, (address));
-    ISquadSponsorBase(_sponsor).spendGas(actualGasCost);
+    address _pool = abi.decode(context, (address));
+    ISquadSponsorPool(_pool).spendGas(actualGasCost);
   }
 
   /// @inheritdoc BasePaymaster
@@ -83,8 +84,13 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     PaymasterData memory _data = _parsePaymasterData(userOp.paymasterAndData);
     _validateRegistry(_data);
 
+    address _pool = ISquadSponsorBase(_data.sponsor).pool();
+    if (ISquadSponsorPool(_pool).defacto() != _data.sponsor && ISquadSponsorPool(_pool).wargame() != _data.sponsor) {
+      revert SS_SponsorNotInPoolSlot(_data.sponsor);
+    }
+
     uint256 _requiredBalance = (maxCost * _BALANCE_HEADROOM_BPS) / 10_000;
-    if (ISquadSponsorBase(_data.sponsor).spendablePoolWei() < _requiredBalance) {
+    if (ISquadSponsorPool(_pool).spendablePoolWei() < _requiredBalance) {
       return ('', SIG_VALIDATION_FAILED);
     }
 
@@ -92,7 +98,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
       return ('', SIG_VALIDATION_FAILED);
     }
 
-    context = abi.encode(_data.sponsor);
+    context = abi.encode(_pool);
     validationData = 0;
   }
 

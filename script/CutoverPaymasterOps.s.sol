@@ -75,6 +75,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
       address(_paymaster),
       _factory.sponsorImplementation(),
       _factory.extImplementation(),
+      _factory.poolImplementation(),
       _broadcaster
     );
   }

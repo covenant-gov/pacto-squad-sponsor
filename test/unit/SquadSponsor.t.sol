@@ -100,10 +100,10 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
 
   function test_Unit_Sponsor_DepositAndWithdrawable() external {
     vm.deal(address(this), 1 ether);
-    _sponsor.deposit{value: 1 ether}();
+    _poolOf(address(_sponsor)).deposit{value: 1 ether}();
 
-    assertEq(_sponsor.withdrawable(address(this)), 1 ether);
-    assertEq(_sponsor.sponsorShares(address(this)), 1 ether);
+    assertEq(_poolOf(address(_sponsor)).withdrawable(address(this)), 1 ether);
+    assertEq(_poolOf(address(_sponsor)).sponsorShares(address(this)), 1 ether);
   }
 
   function test_Unit_Sponsor_RegistryZeroDeploymentUsesCustomHats() external {

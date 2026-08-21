@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {SquadSponsor} from 'contracts/SquadSponsor.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
@@ -9,6 +10,7 @@ import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
 import {Vm} from 'forge-std/Vm.sol';
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
@@ -74,9 +76,12 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     vm.prank(_creator);
     address _sponsor = _factory.createSquadSponsorExt{value: 3 ether}(_squadId, _rosterOwner);
 
-    assertEq(address(_sponsor).balance, 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(address(_poolOf(_sponsor)).balance, 3 ether);
+    assertEq(_poolOf(_sponsor).sponsorShares(_creator), 3 ether);
+    assertEq(_poolOf(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(_factory.poolOf(_squadId), address(_poolOf(_sponsor)));
+    assertEq(_factory.squads(_squadId).pool, address(_poolOf(_sponsor)));
+    assertEq(_poolOf(_sponsor).defacto(), _sponsor);
   }
 
   function test_Unit_Factory_ZeroAddressOwnerReverts() external {
@@ -259,9 +264,11 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     vm.prank(_creator);
     (address _sponsor,,) = _factory.createWarGameSponsorExt{value: 3 ether}(_squadId, _rosterOwner);
 
-    assertEq(address(_sponsor).balance, 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(address(_poolOf(_sponsor)).balance, 3 ether);
+    assertEq(_poolOf(_sponsor).sponsorShares(_creator), 3 ether);
+    assertEq(_poolOf(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(_poolOf(_sponsor).wargame(), _sponsor);
+    assertEq(_factory.squads(_squadId).sponsor, address(0));
   }
 
   function test_Unit_Factory_CreateWarGameZeroParentReverts() external {
@@ -309,5 +316,80 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     }
     assertTrue(_foundCreated);
     assertTrue(_foundWarGame);
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                        createWarGameSponsor (hats)
+                        createPool / createFreshPool
+  //////////////////////////////////////////////////////////////*/
+
+  function test_Unit_Factory_CreateWarGameHatsDoesNotRegisterParent() external {
+    uint256[] memory _customHats = new uint256[](1);
+    _customHats[0] = 0xBEEF;
+    address _wearer = makeAddr('roundWearer');
+    _mockHatWearer(_wearer, 0xBEEF, true);
+
+    (address _sponsor, uint256 _round, bytes32 _gameSquadId) =
+      _factory.createWarGameSponsor(_squadId, 0x100, address(0), _customHats);
+
+    assertEq(_round, 1);
+    assertEq(_gameSquadId, _factory.warGameSquadId(_squadId, 1));
+    assertEq(_sponsor, _factory.predictWarGameHatsSponsor(_squadId, 1));
+    assertEq(uint256(_factory.squads(_gameSquadId).variant), uint256(ISquadSponsorCommon.SquadVariant.SPONSOR));
+    assertEq(_factory.squads(_squadId).sponsor, address(0));
+    assertTrue(SquadSponsor(payable(_sponsor)).isEligible(_wearer));
+    assertEq(_poolOf(_sponsor).wargame(), _sponsor);
+    assertEq(_poolOf(_sponsor).defacto(), address(0));
+    assertEq(_factory.poolOf(_squadId), address(_poolOf(_sponsor)));
+  }
+
+  function test_Unit_Factory_CreateWarGameHatsOverwritesWargameSlot() external {
+    uint256[] memory _customHats = new uint256[](0);
+    (address _first,,) = _factory.createWarGameSponsor(_squadId, 0x101, address(0), _customHats);
+    (address _second,,) = _factory.createWarGameSponsor(_squadId, 0x102, address(0), _customHats);
+
+    ISquadSponsorPool _pool = _poolOf(_first);
+    assertEq(address(_pool), address(_poolOf(_second)));
+    assertEq(_pool.wargame(), _second);
+    assertTrue(_pool.wargame() != _first);
+  }
+
+  function test_Unit_Factory_CreatePoolIsIdempotentPrimary() external {
+    address _first = _factory.createPool(_squadId);
+    address _second = _factory.createPool(_squadId);
+    assertEq(_first, _second);
+    assertEq(_first, _factory.predictPool(_squadId));
+    assertEq(_factory.poolOf(_squadId), _first);
+  }
+
+  function test_Unit_Factory_CreateFreshPoolDoesNotReplacePrimary() external {
+    address _primary = _factory.createPool(_squadId);
+    address _fresh = _factory.createFreshPool(_squadId);
+
+    assertTrue(_fresh != _primary);
+    assertEq(_factory.poolOf(_squadId), _primary);
+    assertEq(_factory.poolNonce(_squadId), 1);
+  }
+
+  function test_Unit_Factory_CreateSponsorAgainstFreshPool() external {
+    address _fresh = _factory.createFreshPool(_squadId);
+    uint256[] memory _customHats = new uint256[](0);
+    address _sponsor = _factory.createSquadSponsor(_squadId, 0x100, address(0), _customHats, _fresh);
+
+    assertEq(ISquadSponsorBase(_sponsor).pool(), _fresh);
+    assertEq(_poolOf(_sponsor).defacto(), _sponsor);
+    assertEq(_factory.poolOf(_squadId), _fresh);
+  }
+
+  function test_Unit_Factory_CreatePoolZeroParentReverts() external {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
+    _factory.createPool(bytes32(0));
+  }
+
+  function test_Unit_Factory_WrongPoolParentReverts() external {
+    bytes32 _otherId = keccak256('other-parent');
+    address _otherPool = _factory.createPool(_otherId);
+    vm.expectRevert(ISquadSponsorCommon.SS_PoolParentMismatch.selector);
+    _factory.createSquadSponsorExt(_squadId, _rosterOwner, _otherPool);
   }
 }

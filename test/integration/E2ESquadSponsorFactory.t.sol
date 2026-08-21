@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {SquadSponsor} from 'contracts/SquadSponsor.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
-import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
@@ -35,6 +36,7 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
     assertEq(_factory.hats(), Constants.hats());
     assertGt(_factory.sponsorImplementation().code.length, 0);
     assertGt(_factory.extImplementation().code.length, 0);
+    assertGt(_factory.poolImplementation().code.length, 0);
   }
 
   function test_integration_create2DeployMatchesPredictedAddresses() public view {
@@ -99,9 +101,10 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
     vm.prank(_creator);
     address _sponsor = _factory.createSquadSponsorExt{value: 3 ether}(_id, _rosterOwner);
 
-    assertEq(address(_sponsor).balance, 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(address(ISquadSponsorPool(_factory.poolOf(_id))).balance, 3 ether);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_id)).sponsorShares(_creator), 3 ether);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_id)).sponsorShares(_rosterOwner), 0);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_id)).defacto(), _sponsor);
   }
 
   function test_e2e_createSquadSponsorExt_revertsOnZeroAddressOwner() public {
@@ -241,14 +244,34 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
     vm.prank(_creator);
     (address _sponsor,,) = _factory.createWarGameSponsorExt{value: 3 ether}(_parentId, _rosterOwner);
 
-    assertEq(address(_sponsor).balance, 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_creator), 3 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(_rosterOwner), 0);
+    assertEq(address(ISquadSponsorPool(_factory.poolOf(_parentId))).balance, 3 ether);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_parentId)).sponsorShares(_creator), 3 ether);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_parentId)).sponsorShares(_rosterOwner), 0);
+    assertEq(ISquadSponsorPool(_factory.poolOf(_parentId)).wargame(), _sponsor);
+    assertEq(_factory.squads(_parentId).sponsor, address(0));
   }
 
   function test_e2e_createWarGameSponsorExt_revertsOnZeroParent() public {
     vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
     _factory.createWarGameSponsorExt(bytes32(0), _rosterOwner);
+  }
+
+  function test_e2e_createWarGameSponsor_hatsDoesNotRegisterParent() public {
+    bytes32 _parentId = _freshSquadId();
+    uint256[] memory _customHats = new uint256[](1);
+    _customHats[0] = _E2E_CUSTOM_HAT_ID;
+    address _wearer = makeAddr('e2eRoundWearer');
+    _mockHatWearer(_wearer, _E2E_CUSTOM_HAT_ID, true);
+
+    (address _sponsor, uint256 _round, bytes32 _gameSquadId) =
+      _factory.createWarGameSponsor(_parentId, _E2E_TOP_HAT_ID, address(0), _customHats);
+
+    assertEq(_round, 1);
+    assertEq(_sponsor, _factory.predictWarGameHatsSponsor(_parentId, 1));
+    assertEq(_factory.squads(_parentId).sponsor, address(0));
+    assertEq(_factory.squads(_gameSquadId).pool, _factory.poolOf(_parentId));
+    assertTrue(SquadSponsor(payable(_sponsor)).isEligible(_wearer));
+    assertEq(ISquadSponsorPool(_factory.poolOf(_parentId)).wargame(), _sponsor);
   }
 
   /*///////////////////////////////////////////////////////////////

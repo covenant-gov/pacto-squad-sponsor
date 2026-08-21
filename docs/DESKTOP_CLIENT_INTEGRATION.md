@@ -16,16 +16,17 @@ Sponsorship pays **gas only**. Action permission stays in `pacto-gov` (`PactoAdm
 | Layer | Question | Contract |
 |-------|----------|----------|
 | Permission | May this address call `bootstrapCrew` / etc.? | pacto-gov |
-| Gas | Will the squad pool pay for this UserOp? | `PactoSponsorPaymaster` + squad clone |
+| Gas | Will the squad pool pay for this UserOp? | `PactoSponsorPaymaster` + `SquadSponsorPool` + eligibility clone |
 
 A UserOp is sponsored when **all** of the following hold:
 
 1. `paymasterAndData` encodes version `1`, the correct `squadId`, the **factory-registered** sponsor clone, and a non-zero `member`.
-2. `sponsor.spendablePoolWei() >= maxCost × 115%` (integer division; see §7). Storage-backed — **not** `address(sponsor).balance` (ERC-7562 bans `BALANCE` during paymaster validation unless the paymaster is staked).
-3. `ISquadSponsorBase(sponsor).isEligible(member)` is true:
+2. The clone occupies `pool.defacto()` or `pool.wargame()` (`pool = sponsor.pool()`). Else hard revert `SS_SponsorNotInPoolSlot`.
+3. `pool.spendablePoolWei() >= maxCost × 115%` (integer division; see §7). Storage-backed — **not** `address(sponsor).balance` (ERC-7562 bans `BALANCE` during paymaster validation unless the paymaster is staked). Clones forward `spendablePoolWei()` to the pool.
+4. `ISquadSponsorBase(sponsor).isEligible(member)` is true:
    - **Ext (pre-hat wiring):** `member` is on the Ext permit list.
    - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears captain or crew hat from `NavePirataRegistry.deployment(topHatId)`, or a configured `customEligibleHats` hat.
-4. Member binding:
+5. Member binding:
    - **EOA sender** (`userOp.sender.code.length == 0`): `sender == member` (else hard revert `SS_InvalidMemberBinding`).
    - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s immutable `ALLOWED_7702_IMPLEMENTATION` (else `SS_Invalid7702Implementation`). Pin that address from [`deployments/<chainId>/eip7702-account.json`](../deployments/11155111/eip7702-account.json).
    - **Other smart-account sender** (Safe, etc.): binding skipped; eligibility is evaluated on `member` only. Safe signer → `member` mapping is **deferred** (not enforced on-chain yet).
@@ -92,23 +93,22 @@ Per-squad clone addresses come from factory create / app deploy flow — look up
 
 | Channel | Registry `squadId` | Create |
 |---------|--------------------|--------|
-| `squad-dashboard` (real gov) | `parentSquadId = keccak256(parentId)` | `createSquadSponsorExt(parentSquadId, owner)` |
-| `squad-wargame` (round N) | `factory.warGameSquadId(parentSquadId, N)` | `createWarGameSponsorExt(parentSquadId, owner)` |
+| `squad-dashboard` (real gov) | `parentSquadId = keccak256(parentId)` | `createSquadSponsorExt` / `createSquadSponsor` → pool `defacto` |
+| `squad-wargame` (round N) | `factory.warGameSquadId(parentSquadId, N)` | `createWarGameSponsor` (hats-native) after `deployNavePirata`; Ext variant for Advanced address-list rounds → pool `wargame` |
 
-War-game UserOps must encode the **round** `squadId` and that round’s clone. Using `parentSquadId` after production `postInitialize` gates gas on the **production** hat tree, not the game tree.
+War-game UserOps must encode the **round** `squadId` and that round’s clone. Using `parentSquadId` after production hats exist gates gas on the **production** hat tree (and only if that clone occupies `defacto`).
 
-**War-game deploy sequence (mirrors real gov):**
+**War-game deploy sequence:**
 
-1. If `factory.squads(parentSquadId).sponsor == 0`, create/fund the parent Ext (pays bootstrap UserOps before round hats exist).
-2. `createWarGameSponsorExt(parentSquadId, addressOwner)` (optional `msg.value` funds the round pool). Persist `round`, `gameSquadId`, `sponsor`.
-3. `setPermittedAddress` for members who will deploy/bootstrap this round (Ext gas).
-4. Deploy the war-game gov stack (`stackKind = WarGame`).
-5. `postInitialize(topHatId, warGameRegistryOrZero, customHats)` on the **round** Ext clone only — never on the parent clone.
-6. After wiring, `squad-wargame` UserOps use `gameSquadId` + round sponsor; eligibility is this round’s captain/crew hats.
+1. If `factory.poolOf(parentSquadId) == 0`, the first create get-or-creates the primary pool. Do **not** occupy production `squads[parentSquadId]` for a throwaway game tree.
+2. `deployNavePirata` (war-game stack) so the top hat is known.
+3. `createWarGameSponsor(parentSquadId, topHatId, registry, customHats)` (optional `msg.value` funds the **parent pool**). Persist `round`, `gameSquadId`, `sponsor`. Factory sets `wargame`.
+4. `squad-wargame` UserOps use `gameSquadId` + round sponsor; eligibility is this round’s captain/crew hats.
+5. On replay: call `createWarGameSponsor` again (new round). Previous round stays registered but is unslotted; depositors withdraw from the **shared pool**, not the retired clone.
 
-On redeploy: call `createWarGameSponsorExt` again (new round). Prompt withdraw of remaining shares on the retired round clone.
+Ext-first (`createSquadSponsorExt` on production `parentSquadId`) is the live sponsor-before-hats path — not the war-game player path.
 
-Until a factory+paymaster cutover lands the new methods on Sepolia, the app may emulate step 2 with `createSquadSponsorExt(keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round)))` and an off-chain round counter (weaker: rounds are not canonical on-chain).
+`createFreshPool` is an explicit escape hatch (new empty vault; old shares stay on the old pool).
 
 ---
 
@@ -116,7 +116,7 @@ Until a factory+paymaster cutover lands the new methods on Sepolia, the app may 
 
 | Bucket | Who funds | How |
 |--------|-----------|-----|
-| **Squad clone pool** | Squad members | `sponsor.deposit()` / create with value — reimburses paymaster via `spendGas` |
+| **Squad parent pool** | Squad members | `pool.deposit()` / create with value — reimburses paymaster via `spendGas` |
 | **EntryPoint deposit** | Anyone (typically Core) | `paymaster.deposit{value:}()` — liquid gas float |
 | **EntryPoint stake** | FCFS single staker via factory | `factory.addPaymasterStake` — bundler trust / ERC-7562 (Alchemy floor: **≥ 0.1 ETH**, delay **≥ 1 day**) |
 
@@ -182,10 +182,11 @@ Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or
 
 1. Parse payload → wrong version **reverts** `SS_InvalidVersion`.
 2. `factory.squads(squadId).sponsor == sponsor` → else **revert** `SS_CloneMismatch`.
-3. `sponsor.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
-4. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), or hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted).
-5. Success: `context = abi.encode(sponsor)`, `validationData = 0`.
-6. On `postOp` with `opSucceeded` only: `sponsor.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
+3. `pool = sponsor.pool()`; `pool.defacto() == sponsor || pool.wargame() == sponsor` → else **revert** `SS_SponsorNotInPoolSlot`.
+4. `pool.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
+5. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), or hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted).
+6. Success: `context = abi.encode(pool)`, `validationData = 0`.
+7. On `postOp` with `opSucceeded` only: `pool.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
 
 The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlists, or cap gas classes (deferred).
 
@@ -266,6 +267,8 @@ There is **no** on-chain calldata-size or batch-size limit for `bootstrapCrew` i
 ---
 
 ## 8. `withdraw()` semantics (Treasury UI)
+
+Call `withdraw` on the **parent pool** (`sponsor.pool()` / `factory.poolOf(parentSquadId)`), not on the eligibility clone.
 
 | Who | Can withdraw? |
 |-----|----------------|

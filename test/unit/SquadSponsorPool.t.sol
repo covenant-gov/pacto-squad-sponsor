@@ -3,8 +3,8 @@ pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
-import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
 import {RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
@@ -12,18 +12,19 @@ import {RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
 /**
  * @title UnitSquadSponsorPool
  * @author Pacto
- * @notice Unit tests for pro-rata pool accounting and paymaster spend on sponsor clones.
+ * @notice Unit tests for pro-rata pool accounting and paymaster spend on `SquadSponsorPool`.
  */
 contract UnitSquadSponsorPool is UnitSquadSponsorBase {
-  ISquadSponsorBase internal _pool;
+  ISquadSponsorPool internal _pool;
+  address internal _sponsor;
 
   address internal _alice = makeAddr('alice');
   address internal _bob = makeAddr('bob');
 
   function setUp() public override {
     super.setUp();
-    address _sponsor = _factory.createSquadSponsorExt(_squadId, address(this));
-    _pool = ISquadSponsorBase(_sponsor);
+    _sponsor = _factory.createSquadSponsorExt(_squadId, address(this));
+    _pool = _poolOf(_sponsor);
 
     vm.deal(address(this), 10 ether);
     _pool.deposit{value: 10 ether}();
@@ -97,10 +98,10 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     uint256 _topHatId = 0x100;
     uint256[] memory _customHats = new uint256[](0);
 
-    SquadSponsorExt(payable(address(_pool))).postInitialize(_topHatId, address(0), _customHats);
+    SquadSponsorExt(payable(_sponsor)).postInitialize(_topHatId, address(0), _customHats);
 
-    assertEq(SquadSponsorExt(payable(address(_pool))).topHatId(), _topHatId);
-    assertTrue(SquadSponsorExt(payable(address(_pool))).hatsWired());
+    assertEq(SquadSponsorExt(payable(_sponsor)).topHatId(), _topHatId);
+    assertTrue(SquadSponsorExt(payable(_sponsor)).hatsWired());
   }
 
   function test_Unit_Pool_PlainSendCreditsShares() external {
@@ -174,7 +175,7 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     bytes32 _emptyId = keccak256('empty-pool');
     address _emptySponsor = _factory.createSquadSponsorExt(_emptyId, address(this));
 
-    assertEq(ISquadSponsorBase(_emptySponsor).withdrawable(_alice), 0);
+    assertEq(_poolOf(_emptySponsor).withdrawable(_alice), 0);
   }
 
   function test_Unit_Pool_DepositAfterFullDrainMintsOneToOne() external {
@@ -221,5 +222,22 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     vm.prank(address(_receiver));
     vm.expectRevert(ISquadSponsorCommon.SS_TransferFailed.selector);
     _pool.withdraw();
+  }
+
+  function test_Unit_Pool_SetDefactoRejectsZero() external {
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    _pool.setDefacto(address(0));
+  }
+
+  function test_Unit_Pool_SetWargameRejectsUnregistered() external {
+    address _clone = address(uint160(uint256(keccak256('not-a-sponsor'))));
+    vm.expectRevert();
+    _pool.setWargame(_clone);
+  }
+
+  function test_Unit_Pool_SponsorForwardsSpendablePoolWei() external view {
+    assertEq(SquadSponsorExt(payable(_sponsor)).spendablePoolWei(), _pool.spendablePoolWei());
+    assertEq(SquadSponsorExt(payable(_sponsor)).paymaster(), address(_paymaster));
+    assertEq(SquadSponsorExt(payable(_sponsor)).pool(), address(_pool));
   }
 }

@@ -15,7 +15,7 @@
 This spec is written for an **implementing agent** working in **pacto-squad-sponsor** with no prior chat context. It defines:
 
 - Product and security goals for **collective, squad-scoped gas sponsorship**
-- On-chain architecture (**one minimal-proxy clone per squad** — pool + eligibility in `SquadSponsorBase`; no separate vault contract)
+- On-chain architecture (**one `SquadSponsorPool` per parent `squadId` on each chain** — ETH + shares in the pool; eligibility clones for production and war-game rounds)
 - Off-chain relayer integration (Alchemy v1; pluggable later)
 - How sponsorship relates to **pacto-gov** via **`SquadSponsorExt.postInitialize`**
 - **Executable milestones** through testnet and mainnet
@@ -137,16 +137,16 @@ References:
 
 | # | Decision |
 |---|----------|
-| D1 | **One production sponsor clone per parent `squadId`** (minimal proxy) — pool + eligibility in `SquadSponsorBase`; each clone’s ETH isolated. War-game rounds are **additional** Ext clones under derived ids (see §4.0). |
+| D1 | **One primary pool per parent `squadId` per chain** — ETH + shares in `SquadSponsorPool`. Production: one hats (or Ext→hats) clone at `keccak256(parentId)`, created at live Launchpad, occupying the pool `defacto` slot. War-game: additional clones only under `warGameSquadId`; never register/wire `parentSquadId`; occupying the pool `wargame` slot. Optional `createFreshPool` for a new vault without migrating old shares. |
 | D2 | **ETH only** — no ERC-20 gas payment in v1 |
-| D3 | **Multi-sponsor pro-rata** accounting per squad clone (deposit shares; withdraw proportional to remaining pool) |
+| D3 | **Multi-sponsor pro-rata** accounting per parent pool (deposit shares; withdraw proportional to remaining pool) |
 | D4 | Depositors may **withdraw** unspent share; gas spend reduces everyone’s withdrawable amount proportionally — **owner cannot withdraw others’ deposits** |
 | D5 | **Permissions ≠ gas** — action permission (`PactoAdmin`, target contracts) is separate from gas payment (this repo) |
 | D6 | **Unmapped funds:** explicit `deposit` only; orphan ETH recoverable via `saviourWithdraw` on implementation / factory policy |
 | D7 | **Not upgradeable** — new policy = new paymaster + new implementation if ever needed |
 | D8 | **Deployment-driven eligibility** — Ext (address) until hat base wired via `postInitialize`; no admin mode toggle |
 | D9 | Relayer v1: **Alchemy** bundler + Gas Manager → **ERC-4337** paymaster |
-| D10 | **One clone per registered `squadId`:** `SquadSponsorExt` (address-first) or `SquadSponsor` (hat-first); Ext `postInitialize` wires hats on **that** clone. Production uses `keccak256(parentId)`; each war-game round uses `warGameSquadId(parentSquadId, round)` |
+| D10 | **One production clone per parent `squadId`:** `SquadSponsorExt` (address-first) or `SquadSponsor` (hat-first); Ext `postInitialize` wires hats on **that** clone. Production uses `keccak256(parentId)` and the pool `defacto` slot. Each war-game round uses `warGameSquadId(parentSquadId, round)` and the pool `wargame` slot (overwrite). Ext-first is the **live** sponsor-before-hats path, not war-game occupying production `keccak256(parentId)`. |
 | D11 | **Hat wiring overrides** addresses (and prior custom hat config) — one-way `postInitialize` |
 | D12 | **v1 eligibility paths:** address (Ext), PactoGov hats, custom Hats tree (same `postInitialize` pattern as **`PactoAdmin`**) |
 | D13 | **EOA + contract wallets** via 7702 + 4337; **Gnosis Safe** as **ERC-4337 smart account** (Safe 4337 plugin — §5.2) |
@@ -170,7 +170,8 @@ flowchart TB
 
   subgraph sponsor [pacto-squad-sponsor]
     Factory[SquadSponsorFactory]
-    SponsorClone[Sponsor clone per squad Ext or Sponsor]
+    SponsorClone[Sponsor clone eligibility]
+    Pool[SquadSponsorPool per parent]
     PM[PactoSponsorPaymaster ERC-4337]
   end
 
@@ -187,54 +188,66 @@ flowchart TB
   UX --> Keys
   Keys -->|sign UserOp / 7702 auth| Bundler
   Bundler --> PM
-    Factory -->|createSquadSponsorExt / createSquadSponsor / createWarGameSponsorExt| SponsorClone
-  PM -->|spendGas| SponsorClone
+  Factory -->|createSquadSponsorExt / createSquadSponsor / createWarGameSponsor / createWarGameSponsorExt| SponsorClone
+  Factory -->|createPool / createFreshPool| Pool
+  PM -->|spendGas if sponsor in defacto or wargame slot| Pool
   Factory -->|postInitialize wires hats on Ext clone| SponsorClone
   PM -->|Safe 4337 UserOp| Mods
 ```
 
 **Execution invariant:** For hat-gated functions, **`msg.sender` must be the member EOA** (or valid contract wearer). The paymaster **never** calls `crewVote` as itself to “proxy” a vote.
 
-**Policy invariant:** Eligibility is evaluated on the **registered sponsor clone** for `squadId` — `SquadSponsorExt` uses address list until `topHatId != 0`, then hat rules on the same clone. Paymaster is **ERC-4337**; transport via bundler (§6.1). See [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) for factory wiring.
+**Policy invariant:** Eligibility is evaluated on the **registered sponsor clone** for `squadId`. Spend is billed to that clone’s **parent pool** only when the clone occupies `defacto` or `wargame`. Paymaster is **ERC-4337**; transport via bundler (§6.1). See [`PACTO_GOV_FOLLOWUPS.md`](./PACTO_GOV_FOLLOWUPS.md) for factory wiring.
 
 ---
 
 ## 4. On-chain contracts
 
-### 4.0 `SquadSponsorFactory` + per-squad clones
+### 4.0 `SquadSponsorFactory` + per-parent pool + eligibility clones
 
-**Problem:** A single chain-wide pool holding all squads’ ETH is a larger honeypot. **v1 uses one minimal-proxy clone per registered `squadId`** (pool + eligibility in `SquadSponsorBase`). Production gov is one clone per parent. War-game replays mint **another** Ext clone per round so each tree can `postInitialize` without rewiring production.
+**Problem:** A single chain-wide pool holding all squads’ ETH is a larger honeypot. **v1 uses one `SquadSponsorPool` per parent `squadId` per chain.** Eligibility lives on sponsor clones. Production is one clone at `keccak256(parentId)` (`defacto` slot). War-game rounds mint **additional** clones under `warGameSquadId` (`wargame` slot) so each tree can wire hats without occupying production.
 
 **`SquadSponsorFactory`** (chain singleton, CREATE2-deployed with `PactoSponsorPaymaster`):
 
-- `createSquadSponsorExt(bytes32 squadId, address addressOwner)` → **Ext clone**; optional ETH → pro-rata deposit. Production `squadId` = `keccak256(parentId)`.
-- `createSquadSponsor(...)` → hat-first clone when top hat known.
-- `createWarGameSponsorExt(parentSquadId, addressOwner)` → next-round Ext clone at `warGameSquadId(parentSquadId, round)` (`keccak256(abi.encode(parent, WAR_GAME_NS, round))`, rounds start at 1). CREATE2 salt = `gameSquadId`. Does **not** register or wire `parentSquadId`. Same `postInitialize` as real gov, **once per round clone**.
+- `createPool(parentSquadId)` → primary pool (CREATE2 salt = `parentSquadId`) if missing.
+- `createFreshPool(parentSquadId)` → extra vault (does not replace primary unless none exists).
+- `createSquadSponsorExt(bytes32 squadId, address addressOwner)` → **Ext clone**; get-or-creates primary pool; sets `defacto`; optional ETH → `pool.depositFor(msg.sender)`. Production `squadId` = `keccak256(parentId)`.
+- `createSquadSponsor(...)` → hat-first production clone; sets `defacto`.
+- `createWarGameSponsor(parentSquadId, topHatId, registry, customEligibleHats)` → hats-native round clone after `deployNavePirata` (top hat known). CREATE2 salt = `gameSquadId`. Does **not** register or wire `parentSquadId`. Sets `wargame` (overwrite). Optional ETH → parent pool.
+- `createWarGameSponsorExt(parentSquadId, addressOwner)` → Ext round clone for Advanced address-list rounds; same namespacing; sets `wargame`.
+- Optional `pool` argument on create overloads (`address(0)` → primary get-or-create).
 - **FCFS paymaster stake ops (MVP):** `addPaymasterStake` / `unlockPaymasterStake` / `withdrawPaymasterStake` / `withdrawPaymasterDeposit`. Single `paymasterStaker` slot; initial stake ≥ `0.1 ether` and delay ≥ `1 days`. Staker controls EP stake lifecycle and `withdrawTo` forwards. Anyone may still call `paymaster.deposit()` directly.
-- `createSquadSponsor(bytes32 squadId, topHatId, registry, customEligibleHats)` → **hat-first Sponsor clone** when hats are known at bootstrap.
-- Registry: `squadId` → `{ sponsor, variant, topHatId }`; `squadIdBySponsor` reverse lookup; `warGameRoundCount(parentSquadId)`; `predictWarGameSponsor(parent, round)`.
+- Registry: `squadId` → `{ sponsor, variant, topHatId, pool }`; `squadIdBySponsor`; `poolOf(parentSquadId)`; `warGameRoundCount`; `predictWarGameSponsor` (Ext), `predictWarGameHatsSponsor`, `predictPool`.
 - `hats()` returns `SquadSponsorConstants.HATS_ADDRESS` (not a constructor arg).
-- Immutable `PAYMASTER` wired into every clone at `initialize`.
+- Immutable `PAYMASTER` wired into every **pool** at `initialize`.
 
-Paymaster is a **chain singleton**; `paymasterAndData` includes `squadId`, **sponsor clone address**, and **member** (§4.2).
+**Slot auth:** `SquadSponsorPool.setDefacto` / `setWargame` use an empty `onlySlotAdmin` modifier (structural checks only). Access control is deferred.
 
-### 4.1 `SquadSponsorBase` (abstract — pool in every clone)
+Paymaster is a **chain singleton**; `paymasterAndData` includes `squadId`, **sponsor clone address**, and **member** (§4.2). Pool is `sponsor.pool()`.
 
-Each clone holds **one squad’s ETH only** (`squadId`, `paymaster`, `factory` set at init).
+### 4.1 `SquadSponsorPool` (vault) + `SquadSponsorBase` (eligibility)
 
-**Responsibilities (per clone):**
+Each **pool** holds **one parent squad’s ETH** on this chain (`parentSquadId`, `paymaster`, `factory` set at init). Two slots: `defacto` (production), `wargame` (current round).
 
-1. Hold ETH for **this squad** only.
+**Pool responsibilities:**
+
+1. Hold ETH for **this parent** only.
 2. Track **sponsor shares** (pro-rata `deposit` / `withdraw`).
 3. Expose `spendGas` **only** to the wired paymaster.
-4. Virtual `_isEligible(member)` — implemented by `SquadSponsorExt` or `SquadSponsor`.
+4. Record at most two spenders (`defacto`, `wargame`).
+
+**Clone responsibilities (`SquadSponsorBase`):**
+
+1. Bind `squadId`, `factory`, immutable `pool`.
+2. Virtual `_isEligible(member)` — Ext address list or hats.
+3. Forward `paymaster()` / `spendablePoolWei()` to the pool.
 
 **First deposit / early bird (Ext path):**
 
-- On **`createSquadSponsorExt`**, **`msg.sender` becomes `addressOwner`** on the Ext clone (D16).
-- Optional `msg.value` on create → `depositFor(msg.sender)` via factory helper.
+- On **`createSquadSponsorExt`**, configured **`addressOwner`** is eligibility admin on the Ext clone (D16).
+- Optional `msg.value` on create → `pool.depositFor(msg.sender)` via factory helper.
 
-**Accounting (pro-rata)** — scoped to single clone:
+**Accounting (pro-rata)** — scoped to the parent pool:
 
 ```
 On deposit / depositFor:
@@ -267,20 +280,21 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
 
 1. Decode `squadId`, `sponsor`, `member` from `paymasterAndData`.
 2. **`_validateRegistry`** — `factory.squads(squadId).sponsor == sponsor`.
-3. Check `sponsor.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
-4. **Member binding / 7702 allowlist:**
+3. **`pool = sponsor.pool()`** — require `pool.defacto() == sponsor || pool.wargame() == sponsor` (else `SS_SponsorNotInPoolSlot`).
+4. Check `pool.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
+5. **Member binding / 7702 allowlist:**
    - EOA (`code.length == 0`): require `sender == member`.
    - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION` (else `SS_Invalid7702Implementation`).
    - Other smart accounts: skip binding (Safe signer mapping **deferred**).
-5. **`sponsor.isEligible(member)`** — Ext address list or hat rules on same clone.
-6. `postOp` (success only) → `sponsor.spendGas(actualGasCost)`.
+6. **`sponsor.isEligible(member)`** — Ext address list or hat rules on that clone.
+7. `postOp` (success only) → `pool.spendGas(actualGasCost)` (context encodes the pool).
 
 **Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps.
 
 **Implemented for 7702:** `ALLOWED_7702_IMPLEMENTATION` on `PactoSponsorPaymaster` (factory constructor arg).
 ### 4.3 `SquadSponsorExt` + `SquadSponsor` clones (mirrors `SquadAdminExt` + `SquadAdmin`)
 
-**One minimal-proxy clone per squad** — pool and eligibility live on the same contract (`SquadSponsorBase`). `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** address.
+**One eligibility clone per registered `squadId`** — ETH lives on the parent `SquadSponsorPool`. `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** clone address.
 
 **Custom Hats tree (no full PactoGov):** same **`postInitialize`** auth pattern as `SquadAdminExt` in pacto-gov — factory, `addressOwner`, or Hats tree owner.
 
@@ -400,7 +414,7 @@ These are the governance surfaces the Pacto app exposes today. Sponsorship follo
 4. Bundler → **`PactoSponsorPaymaster`** validates:
    - At least one validated signer is **eligible** (hat wearer or Ext permitted address)
    - Inner call targets are app-allowed (gov modules, treasury, etc.)
-5. `postOp` → sponsor clone `spendGas`.
+5. `postOp` → pool `spendGas`.
 
 **Also sponsor:** module paths (QM/MM/TA) where **`msg.sender`** is member EOA when app uses direct module calls instead of Safe exec.
 
@@ -545,8 +559,8 @@ Remove boilerplate `Greeter` when implementing.
 
 ### Phase 1 — Factory + sponsor clones
 
-- ✅ `SquadSponsorFactory`: `createSquadSponsorExt`, `createSquadSponsor`, `createWarGameSponsorExt`; configured `addressOwner` on Ext; registry + master copies.
-- ✅ `SquadSponsorBase`: pro-rata deposit/withdraw, `spendGas`, shared init.
+- ✅ `SquadSponsorFactory`: `createSquadSponsorExt`, `createSquadSponsor`, `createWarGameSponsor`, `createWarGameSponsorExt`; `createPool` / `createFreshPool`; configured `addressOwner` on Ext; registry + master copies.
+- ✅ `SquadSponsorBase`: eligibility + pool pointer; vault accounting on `SquadSponsorPool`.
 - ✅ `SquadSponsorExt`: `setPermittedAddress`, `transferAddressOwner`, `postInitialize` (hats on same clone).
 
 ### Phase 2 — SquadSponsor hat path + ERC-4337 paymaster
@@ -589,7 +603,7 @@ Remappings to add: `@openzeppelin/`, `@account-abstraction/`, `@pacto-gov/`.
 #### Clone pattern
 
 - Use OpenZeppelin **`Clones` (EIP-1167)** minimal proxies.
-- **`SquadSponsorFactory`** holds `sponsorImplementation` + `extImplementation`; **`createSquadSponsorExt`** or **`createSquadSponsor`** clones one sponsor per `squadId`; **`createWarGameSponsorExt`** clones an additional Ext per parent round (`cloneDeterministic`); optional ETH on create → `depositFor`.
+- **`SquadSponsorFactory`** holds `sponsorImplementation` + `extImplementation` + `poolImplementation`; production creates one eligibility clone per parent `squadId` and get-or-creates the primary pool; **`createWarGameSponsor`** / **`createWarGameSponsorExt`** clone an additional round (`cloneDeterministic`); optional ETH on create → `pool.depositFor`.
 - Ext **`postInitialize`** wires hats on **that** clone (no second deploy for the same `squadId`). War-game replay creates a new round clone instead of rewiring.
 
 #### `paymasterAndData` layout (v1 — as implemented)

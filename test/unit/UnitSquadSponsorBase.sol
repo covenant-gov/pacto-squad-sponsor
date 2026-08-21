@@ -4,6 +4,9 @@ pragma solidity 0.8.30;
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
+
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
@@ -54,6 +57,10 @@ abstract contract UnitSquadSponsorBase is Test {
     uint256[] memory customEligibleHats
   ) internal returns (address sponsor) {
     sponsor = _factory.createSquadSponsor(squadId, topHatId, registry, customEligibleHats);
+  }
+
+  function _poolOf(address sponsor) internal view returns (ISquadSponsorPool pool) {
+    pool = ISquadSponsorPool(ISquadSponsorBase(sponsor).pool());
   }
 
   function _mockHatsAdmin(address user, uint256 topHatId, bool isAdmin) internal {
