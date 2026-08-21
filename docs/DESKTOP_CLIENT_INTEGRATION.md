@@ -81,7 +81,9 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 
 **Deploy order (greenfield):** (1) `pnpm deploy:7702:sepolia` → commit `eip7702-account.json`; (2) `pnpm deploy:sepolia` — allowlist resolves from that artifact (or non-zero `PACTO_7702_ACCOUNT`). Do not broadcast a full-system deploy with a zero allowlist; scripts revert on live chains.
 
-**Paymaster cutover (wrong / zero allowlist):** If an existing factory/paymaster was deployed with `ALLOWED_7702_IMPLEMENTATION == address(0)`, that immutable cannot be patched. Run `pnpm cutover:paymaster:sepolia` (simulate: `pnpm simulate-cutover:paymaster:sepolia`): one forge broadcast redeploys factory+paymaster against the existing `PactoSimple7702Account` (does **not** redeploy 7702), asserts allowlist wiring, funds EntryPoint deposit + FCFS `addPaymasterStake`, and writes `full-system.json`. Optional env: `PAYMASTER_EP_DEPOSIT_WEI`, `PAYMASTER_STAKE_WEI`, `PAYMASTER_UNSTAKE_DELAY_SEC` (defaults 0.1 ETH / 0.1 ETH / 172800). After cutover, paste the new artifact into `pacto-app`’s address book (`pacto-protocol-addresses.json`); recreate squad sponsors (old clones stay wired to the dead paymaster). Separate `cast send` deposit/stake steps are unnecessary for this path.
+**Paymaster fund (live top-up):** Greenfield `pnpm deploy:sepolia` does **not** fund EntryPoint deposit or FCFS stake. For an already-deployed factory/paymaster, run `pnpm fund:paymaster:sepolia` (simulate: `pnpm simulate-fund:paymaster:sepolia`): reads `full-system.json`, calls `paymaster.deposit` + `factory.addPaymasterStake`, does **not** redeploy or rewrite the artifact. Same env knobs as cutover: `PAYMASTER_EP_DEPOSIT_WEI`, `PAYMASTER_STAKE_WEI`, `PAYMASTER_UNSTAKE_DELAY_SEC` (defaults 0.1 ETH / 0.1 ETH / 172800). Occupied stake slot reverts `SS_StakeSlotOccupied` unless the broadcaster already holds it (top-up). Prefer this over ad-hoc `cast send` for Core ops.
+
+**Paymaster cutover (wrong / zero allowlist):** If an existing factory/paymaster was deployed with `ALLOWED_7702_IMPLEMENTATION == address(0)`, that immutable cannot be patched. Run `pnpm cutover:paymaster:sepolia` (simulate: `pnpm simulate-cutover:paymaster:sepolia`): one forge broadcast redeploys factory+paymaster against the existing `PactoSimple7702Account` (does **not** redeploy 7702), asserts allowlist wiring, funds EntryPoint deposit + FCFS `addPaymasterStake`, and writes `full-system.json`. Optional env: `PAYMASTER_EP_DEPOSIT_WEI`, `PAYMASTER_STAKE_WEI`, `PAYMASTER_UNSTAKE_DELAY_SEC` (defaults 0.1 ETH / 0.1 ETH / 172800). After cutover, paste the new artifact into `pacto-app`’s address book (`pacto-protocol-addresses.json`); recreate squad sponsors (old clones stay wired to the dead paymaster). Do **not** use cutover to top up a healthy live paymaster.
 
 **Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster / 7702 account are not deployed in-repo yet until you broadcast.
 
@@ -126,6 +128,8 @@ Holding the FCFS stake slot (`factory.paymasterStaker()`) also controls:
 - `withdrawPaymasterDeposit(to, amount)` → `paymaster.withdrawTo` (EP deposit exit)
 
 Vacant slot → no deposit withdraw until someone stakes. No multi-contributor credit accounting (MVP).
+
+Preferred ops path for Sepolia deposit + initial/top-up stake: `pnpm simulate-fund:paymaster:sepolia` then `pnpm fund:paymaster:sepolia` (see §3). Cast below is the manual fallback.
 
 ### Cast examples (Core ops — not end-user UI)
 
