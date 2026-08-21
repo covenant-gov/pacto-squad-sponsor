@@ -112,7 +112,14 @@ pnpm deploy:7702:mainnet
 pnpm deploy:mainnet
 ```
 
-If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702):
+To fund EntryPoint deposit + FCFS stake on an **already-deployed** paymaster (does not redeploy; addresses from `full-system.json`):
+
+```bash
+pnpm simulate-fund:paymaster:sepolia
+pnpm fund:paymaster:sepolia
+```
+
+If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702). Do **not** use cutover to top up the live Sepolia paymaster.
 
 ```bash
 pnpm cutover:paymaster:sepolia
