@@ -54,6 +54,7 @@ abstract contract DeploymentArtifacts is Script {
     address pactoSponsorPaymaster,
     address sponsorImplementation,
     address extImplementation,
+    address poolImplementation,
     address deployer
   ) internal {
     if (!_shouldWriteDeploymentJson()) return;
@@ -65,6 +66,7 @@ abstract contract DeploymentArtifacts is Script {
     vm.serializeAddress(k, 'pactoSponsorPaymaster', pactoSponsorPaymaster);
     vm.serializeAddress(k, 'sponsorImplementation', sponsorImplementation);
     vm.serializeAddress(k, 'extImplementation', extImplementation);
+    vm.serializeAddress(k, 'poolImplementation', poolImplementation);
     string memory json = vm.serializeAddress(k, 'deployer', deployer);
     _writeDeploymentJson(json, 'full-system.json');
   }

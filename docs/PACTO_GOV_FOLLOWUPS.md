@@ -23,11 +23,11 @@ When `NavePirataFactory.deployNavePirata` (or equivalent) completes for a squad:
 
 Do **not** resolve or `postInitialize` the production clone (`keccak256(parentId)` / parent `squadId`). Each war-game deploy must:
 
-1. Use the Ext clone created by `SquadSponsorFactory.createWarGameSponsorExt(parentSquadId, addressOwner)` for this round (`factory.warGameSquadId(parentSquadId, round)`).
-2. After the game Hats tree exists, call `extClone.postInitialize(topHatId, registry, customHats)` on **that round clone only**.
+1. After `deployNavePirata` (top hat known), call `SquadSponsorFactory.createWarGameSponsor(parentSquadId, topHatId, registry, customHats)` for this round (`factory.warGameSquadId(parentSquadId, round)`). Keep `createWarGameSponsorExt` for Advanced address-list rounds only.
+2. Optional ETH on create deposits into the **parent pool**, not the round clone. The factory sets the pool `wargame` slot (overwrite).
 3. `registry` should be `WarGameRegistry` if it exposes the same `deployment(topHatId)` shape as `NavePirataRegistry`; otherwise pass `address(0)` and captain/crew ids in `customEligibleHats`.
 
-Replay = a new `createWarGameSponsorExt` (new round), not a second `postInitialize` on an old clone. Never hats-wire the parent clone to a throwaway game tree.
+Replay = a new `createWarGameSponsor` (new round), not a second `postInitialize` on an old clone. Never hats-wire the parent clone to a throwaway game tree. Never write `_squads[parentSquadId]` from a war-game create.
 
 ---
 
@@ -100,10 +100,10 @@ See sponsor spec §5.2 (D18).
 
 ## 10. Testing checklist (pacto-gov PR)
 
-- [ ] **Mainnet fork** test (D19): pool funded on Ext **before** gov → `deployNavePirata` → `postInitialize` → hat wearer sponsored.
+- [ ] **Mainnet fork** test (D19): pool funded **before** gov → `deployNavePirata` → `createWarGameSponsor` or production hats clone → hat wearer sponsored.
 - [ ] Squads without gov deploy continue on Ext address mode only.
 - [ ] Custom hat tree (no full PactoGov): same **`postInitialize`** pattern as **`PactoAdmin`** — norm in pacto-gov today.
-- [ ] War-game deploy wires **round** Ext clone only; production `keccak256(parentId)` clone `topHatId` unchanged.
+- [ ] War-game deploy wires **round** clone only (`createWarGameSponsor`); production `keccak256(parentId)` clone `topHatId` unchanged; parent pool `wargame` slot updated.
 
 ---
 

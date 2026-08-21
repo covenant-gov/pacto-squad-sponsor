@@ -139,21 +139,22 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
     uint256[] memory _customHats = new uint256[](0);
 
     vm.expectRevert(ISquadSponsorCommon.SS_UseAddressInitializer.selector);
-    _ext.initialize(_squadId, address(_paymaster), address(_factory), 0x100, address(0), _customHats);
+    _ext.initialize(_squadId, address(_factory), address(0), 0x100, address(0), _customHats);
   }
 
-  function test_Unit_Ext_InitializeZeroPaymasterReverts() external {
+  function test_Unit_Ext_InitializeZeroPoolReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
 
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(0), address(_factory), _owner);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_factory), address(0), _owner);
   }
 
   function test_Unit_Ext_InitializeZeroAddressOwnerReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
+    address _pool = _factory.createPool(keccak256('ext-init-owner'));
 
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_paymaster), address(_factory), address(0));
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_factory), _pool, address(0));
   }
 
   function test_Unit_Ext_PostInitializeSwitchesToHatEligibility() external {
@@ -176,7 +177,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   }
 
   function test_Unit_Ext_SetPermittedAddressAlreadyWiredReverts() external {
-    vm.store(address(_ext), bytes32(uint256(6)), bytes32(uint256(0x500)));
+    vm.store(address(_ext), bytes32(uint256(3)), bytes32(uint256(0x500)));
 
     vm.prank(_owner);
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
@@ -184,7 +185,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
   }
 
   function test_Unit_Ext_TransferAddressOwnerAlreadyWiredReverts() external {
-    vm.store(address(_ext), bytes32(uint256(6)), bytes32(uint256(0x501)));
+    vm.store(address(_ext), bytes32(uint256(3)), bytes32(uint256(0x501)));
 
     vm.prank(_owner);
     vm.expectRevert(ISquadSponsorCommon.SS_AlreadyWired.selector);
@@ -193,12 +194,13 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
 
   function test_Unit_Ext_InitializeZeroFactoryReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
+    address _pool = _factory.createPool(keccak256('ext-init-factory'));
 
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_paymaster), address(0), _owner);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(0), _pool, _owner);
   }
 
-  function test_Unit_Ext_InitializeZeroPaymasterAndFactoryReverts() external {
+  function test_Unit_Ext_InitializeZeroPoolAndFactoryReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
 
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);

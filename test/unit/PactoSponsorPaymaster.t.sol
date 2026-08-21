@@ -6,7 +6,6 @@ import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 
-import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
@@ -43,7 +42,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     (bytes memory _context, uint256 _validationData) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
 
     assertEq(_validationData, 0);
-    assertEq(_context, abi.encode(_sponsor));
+    assertEq(_context, abi.encode(address(_poolOf(_sponsor))));
   }
 
   function test_Unit_Paymaster_RejectsIneligibleMember() external {
@@ -66,8 +65,8 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     vm.prank(_ENTRY_POINT);
     _paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, _context, 1 ether, 0);
 
-    assertEq(address(_sponsor).balance, 4 ether);
-    assertEq(ISquadSponsorBase(_sponsor).spendablePoolWei(), 4 ether);
+    assertEq(address(_poolOf(_sponsor)).balance, 4 ether);
+    assertEq(_poolOf(_sponsor).spendablePoolWei(), 4 ether);
     assertEq(address(_paymaster).balance - _balanceBefore, 1 ether);
   }
 
@@ -222,7 +221,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     vm.prank(_ENTRY_POINT);
     _paymaster.postOp(IPaymaster.PostOpMode.opReverted, _context, 1 ether, 0);
 
-    assertEq(address(_sponsor).balance, 5 ether);
+    assertEq(address(_poolOf(_sponsor)).balance, 5 ether);
   }
 
   function test_Unit_Paymaster_ValidatesWarGameSquadIdWhileParentHatsWired() external {
@@ -245,6 +244,21 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     vm.prank(_ENTRY_POINT);
     (, uint256 _parentValidation) = _paymaster.validatePaymasterUserOp(_parentOp, bytes32(0), 1 ether);
     assertEq(_parentValidation, SIG_VALIDATION_FAILED);
+  }
+
+  function test_Unit_Paymaster_RejectsUnslottedPreviousWarGameRound() external {
+    vm.deal(address(this), 5 ether);
+    (address _first,, bytes32 _firstId) = _factory.createWarGameSponsorExt{value: 5 ether}(_squadId, address(this));
+    address _firstMember = makeAddr('firstRoundMember');
+    SquadSponsorExt(payable(_first)).setPermittedAddress(_firstMember, true);
+
+    (address _second,,) = _factory.createWarGameSponsorExt(_squadId, address(this));
+    assertEq(_poolOf(_second).wargame(), _second);
+
+    PackedUserOperation memory _staleOp = _buildUserOpFor(_firstMember, _firstId, _first, _firstMember);
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_SponsorNotInPoolSlot.selector, _first));
+    _paymaster.validatePaymasterUserOp(_staleOp, bytes32(0), 1 ether);
   }
 
   function test_Unit_Paymaster_ConstructorRevertsZeroFactory() external {

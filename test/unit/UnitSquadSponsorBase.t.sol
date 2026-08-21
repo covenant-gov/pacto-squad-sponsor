@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
-
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
 
 /// @notice Exercises shared base helpers for coverage.
@@ -17,8 +15,8 @@ contract UnitSquadSponsorBase_Test is UnitSquadSponsorBase {
     vm.deal(address(this), 2 ether);
     address _sponsor = _createSquadExtWithDeposit(keccak256('base-with-deposit'), 2 ether);
 
-    assertEq(address(_sponsor).balance, 2 ether);
-    assertEq(ISquadSponsorBase(_sponsor).sponsorShares(address(this)), 2 ether);
+    assertEq(address(_poolOf(_sponsor)).balance, 2 ether);
+    assertEq(_poolOf(_sponsor).sponsorShares(address(this)), 2 ether);
   }
 
   function test_Unit_Base_CreateSquadHat() external {

@@ -15,11 +15,11 @@ interface ISquadSponsorExt is ISquadSponsor {
   /**
    * @notice One-shot initializer for an EIP-1167 Ext clone.
    * @param squadId Squad identifier bound to this clone.
-   * @param paymaster Chain paymaster authorized to call `spendGas`.
    * @param factory SquadSponsorFactory address.
+   * @param pool Parent `SquadSponsorPool` this clone spends from.
    * @param addressOwner Eligibility admin for the address permit list (configured at create).
    */
-  function initialize(bytes32 squadId, address paymaster, address factory, address addressOwner) external;
+  function initialize(bytes32 squadId, address factory, address pool, address addressOwner) external;
 
   /*///////////////////////////////////////////////////////////////
                             LOGIC

@@ -29,13 +29,13 @@ contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
   /// @inheritdoc ISquadSponsor
   function initialize(
     bytes32 _squadId,
-    address _paymaster,
     address _factory,
+    address _pool,
     uint256 _topHatId,
     address _registry,
     uint256[] calldata _customHats
   ) external virtual initializer {
-    _sponsorBaseInit(_squadId, _paymaster, _factory);
+    _sponsorBaseInit(_squadId, _factory, _pool);
     _sponsorHatInit(_topHatId, _registry, _customHats);
   }
 

@@ -10,13 +10,14 @@ v1 targets Ethereum Mainnet, Sepolia, and Arbitrum One.
 
 | Contract | Role |
 |----------|------|
-| [`SquadSponsorFactory`](src/contracts/SquadSponsorFactory.sol) | Chain singleton. Deploys per-squad clones and the wired paymaster. |
-| [`PactoSponsorPaymaster`](src/contracts/PactoSponsorPaymaster.sol) | ERC-4337 EntryPoint v0.7 paymaster. Spends from the registered squad clone. |
-| [`SquadSponsorExt`](src/contracts/SquadSponsorExt.sol) | Address-based eligibility. Typical first path, before Hats exist. |
-| [`SquadSponsor`](src/contracts/SquadSponsor.sol) | Hat-based eligibility (hat-first clone, or Ext after `postInitialize`). |
+| [`SquadSponsorFactory`](src/contracts/SquadSponsorFactory.sol) | Chain singleton. Deploys per-parent pools, per-squad eligibility clones, and the wired paymaster. |
+| [`SquadSponsorPool`](src/contracts/SquadSponsorPool.sol) | Per-parent ETH vault (shares, `spendGas`, `defacto` / `wargame` slots). |
+| [`PactoSponsorPaymaster`](src/contracts/PactoSponsorPaymaster.sol) | ERC-4337 EntryPoint v0.7 paymaster. Spends from the parent pool when the clone occupies a slot. |
+| [`SquadSponsorExt`](src/contracts/SquadSponsorExt.sol) | Address-based eligibility. Typical live path before Hats exist (`defacto`). |
+| [`SquadSponsor`](src/contracts/SquadSponsor.sol) | Hat-based eligibility (hat-first clone, Ext after `postInitialize`, or war-game round). |
 | [`PactoSimple7702Account`](src/contracts/PactoSimple7702Account.sol) | Pacto-owned EIP-7702 account implementation. |
 
-Each squad gets one EIP-1167 clone. The clone holds that squad’s ETH and eligibility. `SquadSponsorExt.postInitialize` wires Hats on the same clone (one-way; hats override the address list).
+Each parent squad gets one primary pool per chain (optional extra pools via `createFreshPool`). Eligibility clones hold no ETH. `SquadSponsorExt.postInitialize` wires Hats on that clone (one-way; hats override the address list). War-game rounds use `createWarGameSponsor` after `deployNavePirata` and never occupy production `squadId`.
 
 ## Docs
 

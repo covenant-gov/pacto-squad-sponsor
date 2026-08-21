@@ -34,14 +34,9 @@ contract SquadSponsorExt is ISquadSponsorExt, SquadSponsor {
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc ISquadSponsorExt
-  function initialize(
-    bytes32 _squadId,
-    address _paymaster,
-    address _factory,
-    address _addressOwner
-  ) external initializer {
+  function initialize(bytes32 _squadId, address _factory, address _pool, address _addressOwner) external initializer {
     if (_addressOwner == address(0)) revert SS_ZeroAddress();
-    _sponsorBaseInit(_squadId, _paymaster, _factory);
+    _sponsorBaseInit(_squadId, _factory, _pool);
     addressOwner = _addressOwner;
   }
 

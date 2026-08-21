@@ -81,6 +81,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     console.log('PactoSponsorPaymaster:', address(_paymaster));
     console.log('Sponsor implementation:', _factory.sponsorImplementation());
     console.log('Ext implementation:', _factory.extImplementation());
+    console.log('Pool implementation:', _factory.poolImplementation());
     console.log('Factory PAYMASTER:', _factory.PAYMASTER());
     console.log('Hats:', _factory.hats());
     console.log('NavePirataRegistry:', _config.navePirataRegistry);

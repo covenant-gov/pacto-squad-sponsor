@@ -67,7 +67,7 @@ contract E2ESquadSponsorPoolTest is IntegrationBase {
     vm.prank(address(_paymaster));
     _pool().spendGas(_amount);
 
-    assertEq(address(_extSponsor).balance, _E2E_POOL_DEPOSIT - _amount);
+    assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT - _amount);
     assertEq(address(_paymaster).balance - _paymasterBefore, _amount);
   }
 

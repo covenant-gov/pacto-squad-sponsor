@@ -65,15 +65,37 @@ interface ISquadSponsorCommon {
   event SquadCreated(bytes32 indexed squadId, address sponsor, SquadVariant variant, address indexed addressOwner);
 
   /**
-   * @notice A war-game Ext clone was created for a parent squad round.
+   * @notice A war-game round clone was created for a parent squad.
    * @param parentSquadId Production squad identifier (`keccak256(parentId)`).
    * @param round 1-indexed war-game round for this parent.
    * @param gameSquadId Derived registry id for this round's clone.
-   * @param sponsor New Ext clone address.
+   * @param sponsor New round clone address.
    */
   event WarGameSponsorCreated(
     bytes32 indexed parentSquadId, uint256 round, bytes32 indexed gameSquadId, address indexed sponsor
   );
+
+  /**
+   * @notice A per-parent ETH pool clone was deployed.
+   * @param parentSquadId Production squad identifier this vault is bound to.
+   * @param pool New pool clone address.
+   * @param primary True when this pool is recorded as `poolOf(parentSquadId)`.
+   */
+  event PoolCreated(bytes32 indexed parentSquadId, address indexed pool, bool primary);
+
+  /**
+   * @notice The production sponsor slot on a pool was updated.
+   * @param pool Pool whose defacto slot changed.
+   * @param sponsor New defacto sponsor (`address(0)` if cleared).
+   */
+  event DefactoSet(address indexed pool, address indexed sponsor);
+
+  /**
+   * @notice The war-game sponsor slot on a pool was updated.
+   * @param pool Pool whose wargame slot changed.
+   * @param sponsor New wargame sponsor (`address(0)` if cleared).
+   */
+  event WargameSet(address indexed pool, address indexed sponsor);
 
   /**
    * @notice An address was added or removed from the Ext permit list.
@@ -140,6 +162,18 @@ interface ISquadSponsorCommon {
   error SS_AlreadyWired();
   /// @notice Wrong initializer overload for this clone variant.
   error SS_UseAddressInitializer();
+  /// @notice Sponsor is not registered in the factory.
+  error SS_UnknownSponsor();
+  /// @notice Sponsor clone is not wired to this pool.
+  error SS_PoolMismatch();
+  /// @notice Provided pool is bound to a different parent squad id.
+  error SS_PoolParentMismatch();
+
+  /**
+   * @notice Sponsor is not in the pool defacto or wargame slot.
+   * @param sponsor Clone that failed the slot check.
+   */
+  error SS_SponsorNotInPoolSlot(address sponsor);
 
   /**
    * @notice Zero value passed for a named field.

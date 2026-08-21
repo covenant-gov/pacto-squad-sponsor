@@ -15,16 +15,16 @@ interface ISquadSponsor is ISquadSponsorBase {
   /**
    * @notice One-shot initializer for an EIP-1167 hat clone.
    * @param squadId Squad identifier bound to this clone.
-   * @param paymaster Chain paymaster authorized to call `spendGas`.
    * @param factory SquadSponsorFactory address.
+   * @param pool Parent `SquadSponsorPool` this clone spends from.
    * @param topHatId Linked Hats tree top hat id.
    * @param registry PactoGov registry (`address(0)` for custom-hat-only squads).
    * @param customEligibleHats Optional extra eligible hat ids (custom tree path).
    */
   function initialize(
     bytes32 squadId,
-    address paymaster,
     address factory,
+    address pool,
     uint256 topHatId,
     address registry,
     uint256[] calldata customEligibleHats

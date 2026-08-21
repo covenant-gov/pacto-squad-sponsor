@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 import {SquadSponsor} from 'contracts/SquadSponsor.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
-import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
+import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
 import {Constants, DEFAULT_MAINNET_FORK_BLOCK, HATS_PROTOCOL_V1} from 'script/Constants.sol';
 import {SponsorDeploy} from 'script/SponsorDeploy.sol';
@@ -214,7 +214,7 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
     _paymaster.postOp(IPaymaster.PostOpMode.opReverted, _context, _actualGasCost, 0);
   }
 
-  function _pool() internal view returns (ISquadSponsorBase _p) {
-    _p = ISquadSponsorBase(address(_extSponsor));
+  function _pool() internal view returns (ISquadSponsorPool _p) {
+    _p = ISquadSponsorPool(_extSponsor.pool());
   }
 }

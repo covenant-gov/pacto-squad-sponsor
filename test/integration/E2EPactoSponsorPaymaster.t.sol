@@ -43,7 +43,7 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
     (bytes memory _context, uint256 _validationData) = _validatePaymaster(_userOp, 1 ether);
 
     assertEq(_validationData, 0);
-    assertEq(_context, abi.encode(address(_extSponsor)));
+    assertEq(_context, abi.encode(_extSponsor.pool()));
   }
 
   function test_e2e_validatePaymasterUserOp_rejectsIneligibleMember() public withDeployedExtSquad {
@@ -159,7 +159,7 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
     uint256 _paymasterBefore = address(_paymaster).balance;
     _postOpSucceeded(_context, 1 ether);
 
-    assertEq(address(_extSponsor).balance, _E2E_POOL_DEPOSIT - 1 ether);
+    assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT - 1 ether);
     assertEq(address(_paymaster).balance - _paymasterBefore, 1 ether);
   }
 
@@ -169,7 +169,7 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
 
     _postOpReverted(_context, 1 ether);
 
-    assertEq(address(_extSponsor).balance, _E2E_POOL_DEPOSIT);
+    assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT);
   }
 
   /*///////////////////////////////////////////////////////////////

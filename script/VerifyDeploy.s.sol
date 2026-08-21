@@ -14,7 +14,7 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  * @author Pacto
  * @notice Etherscan verification for sponsor bootstrap contracts from `deployments/<chainId>/full-system.json`.
  * @dev Requires `FOUNDRY_PROFILE=verify` (`ffi = true` in `[profile.verify]` only). Run after `Deploy`.
- *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`).
+ *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`, `poolImplementation`).
  *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
  *      Also asserts on-chain `ALLOWED_7702_IMPLEMENTATION` matches the 7702 artifact / `PACTO_7702_ACCOUNT`.
  */
@@ -29,6 +29,7 @@ contract VerifyDeploy is Script {
   string internal constant _PAYMASTER = 'src/contracts/PactoSponsorPaymaster.sol:PactoSponsorPaymaster';
   string internal constant _SPONSOR = 'src/contracts/SquadSponsor.sol:SquadSponsor';
   string internal constant _EXT = 'src/contracts/SquadSponsorExt.sol:SquadSponsorExt';
+  string internal constant _POOL = 'src/contracts/SquadSponsorPool.sol:SquadSponsorPool';
 
   function run() external {
     string memory _chain = _chainSlug();
@@ -58,6 +59,7 @@ contract VerifyDeploy is Script {
     _verify(_paymaster, _PAYMASTER, _chain, _encPaymaster);
     _verify(_factoryContract.sponsorImplementation(), _SPONSOR, _chain, _encEmpty);
     _verify(_factoryContract.extImplementation(), _EXT, _chain, _encEmpty);
+    _verify(_factoryContract.poolImplementation(), _POOL, _chain, _encEmpty);
   }
 
   /// @dev Prefer `eip7702-account.json`, then `PACTO_7702_ACCOUNT` (same as deploy scripts).
