@@ -193,12 +193,13 @@ contract E2ESquadSponsorExtTest is IntegrationBase {
 
   function test_e2e_initialize_revertsWhenAlreadyInitialized() public withDeployedExtSquad {
     SquadSponsorExt _fresh = _newExtClone();
+    address pool = _extSponsor.pool();
 
     vm.prank(_addressOwner);
-    _fresh.initialize(_squadId, address(_factory), _extSponsor.pool(), _addressOwner);
+    _fresh.initialize(_squadId, address(_factory), pool, _addressOwner);
 
     vm.expectRevert(Initializable.InvalidInitialization.selector);
-    _fresh.initialize(_squadId, address(_factory), _extSponsor.pool(), _addressOwner);
+    _fresh.initialize(_squadId, address(_factory), pool, _addressOwner);
   }
 
   function test_e2e_initialize_revertsOnZeroAddressOwner() public {
