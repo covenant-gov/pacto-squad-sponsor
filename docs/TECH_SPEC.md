@@ -123,7 +123,7 @@ flowchart LR
 - EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == ALLOWED_7702_IMPLEMENTATION` (immutable on the paymaster; set via `SquadSponsorFactory` ctor / `PACTO_7702_ACCOUNT`).
 - Other smart accounts (e.g. Safe) ⇒ `member` in payload only (signer → `member` mapping **deferred**).
 
-**EIP-7702 set-code target:** Pacto-owned [`PactoSimple7702Account`](../src/contracts/PactoSimple7702Account.sol) — storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`. Publish address in `deployments/<chainId>/eip7702-account.json`. Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
+**EIP-7702 set-code target:** Owned by [pacto-aa](https://github.com/covenant-gov/pacto-aa) — [`PactoSimple7702Account`](https://github.com/covenant-gov/pacto-aa/blob/dev/src/contracts/PactoSimple7702Account.sol) (storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`, IERC721 + IERC1155 receivers). Canonical address: [pacto-aa `deployments/<chainId>/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json); this repo mirrors that file for forge allowlist resolution. Client contract: [pacto-aa `docs/CLIENT_CONTRACT.md`](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md). Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
 
 References:
 
