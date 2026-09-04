@@ -85,8 +85,9 @@ contract VerifyDeploy is Script {
   }
 
   /// @dev Prefer `full-system.json` `.protocolRegistry`, then `protocol-registry.json`, then env.
+  ///      Uses `vm.parseJsonAddress` (not `this`) so Foundry does not reject ephemeral `address(this)`.
   function _resolveExpectedRegistry(string memory fullSystemJson) internal view returns (address registry) {
-    try this.readProtocolRegistry(fullSystemJson) returns (address fromFull) {
+    try vm.parseJsonAddress(fullSystemJson, '.protocolRegistry') returns (address fromFull) {
       if (fromFull != address(0)) return fromFull;
     } catch {}
 
@@ -96,11 +97,6 @@ contract VerifyDeploy is Script {
     } catch {}
     if (registry != address(0)) return registry;
     registry = vm.envOr('PACTO_PROTOCOL_REGISTRY', address(0));
-  }
-
-  /// @dev External so try/catch can trap missing JSON keys.
-  function readProtocolRegistry(string memory fullSystemJson) external pure returns (address registry) {
-    registry = fullSystemJson.readAddress('.protocolRegistry');
   }
 
   /// @dev Prefer mirrored `eip7702-account.json` (from pacto-aa), then `PACTO_7702_ACCOUNT`.

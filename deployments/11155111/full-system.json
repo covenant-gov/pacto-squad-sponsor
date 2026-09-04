@@ -2,10 +2,11 @@
   "chainId": 11155111,
   "deployer": "0x897Aae53c0255b02EFF66bF2D623b19FA87e2d69",
   "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-  "extImplementation": "0x54f7e42C449f78BE6793bBfDa9CDb916cC1d7C89",
+  "extImplementation": "0x2EF9B3eAEA2d42173e843c9aC082449049D3C26B",
   "navePirataRegistry": "0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f",
-  "pactoSponsorPaymaster": "0xc7c3Ea95734CcCa62C7FFf4d12Be2B5b8cC92BA1",
-  "poolImplementation": "0xe50BC6b75E2fc1c32896656429f51f01E8626B4E",
-  "sponsorImplementation": "0x59b60488e22AB28d8fD0C98AC908872E781e37E8",
-  "squadSponsorFactory": "0xD8bdc2e5Ca92e129E84207380076c1F18AA3aA95"
+  "pactoSponsorPaymaster": "0xD84337C18dB089DF78c69Ea0df619bD48EEBBcC3",
+  "poolImplementation": "0xEaa7E00Cd1DEDB8E1d314475D8d5fAc4f1D134aE",
+  "protocolRegistry": "0xAF61198bf3b9D8d49FA82888121c187720D6Cfe8",
+  "sponsorImplementation": "0x39502c083E8491d4bfc21BBe999089f9F53f38d6",
+  "squadSponsorFactory": "0x9F6b1936e1817A074033591bb55DC65CBB29e4d7"
 }
