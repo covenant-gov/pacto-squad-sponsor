@@ -17,6 +17,9 @@ importers:
       hats-core:
         specifier: github:Hats-Protocol/hats-protocol
         version: https://codeload.github.com/Hats-Protocol/hats-protocol/tar.gz/cccb71a061cdb9095af7d11dfdb47026993d8c4e
+      pacto-aa:
+        specifier: github:covenant-gov/pacto-aa#3cc8c9471516b14d511964b5576ea09fb30df105
+        version: https://codeload.github.com/covenant-gov/pacto-aa/tar.gz/3cc8c9471516b14d511964b5576ea09fb30df105
       pacto-gov:
         specifier: github:covenant-gov/pacto-gov
         version: solidity-foundry-boilerplate@https://codeload.github.com/covenant-gov/pacto-gov/tar.gz/e12118911b3577147d3695604fd883723985f688(ethers@5.4.0)
@@ -533,7 +536,7 @@ packages:
     engines: {node: '>=18'}
 
   forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d:
-    resolution: {tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d}
     version: 1.9.2
 
   fs.realpath@1.0.0:
@@ -557,12 +560,13 @@ packages:
   git-raw-commits@4.0.0:
     resolution: {integrity: sha512-ICsMM1Wk8xSGMowkOmPrzo2Fgmfo4bMHLNX6ytHjajRJUqvHOw/TFapQ+QG75c3X/tTDDhOSRPGC52dDbNM8FQ==}
     engines: {node: '>=16'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob@8.1.0:
     resolution: {integrity: sha512-r8hpEjiQEYlF2QU0df3dS+nxxSIreXQS1qRhMJM0Q5NDdR386C7jb7Hwwod8Fgiuex+k0GFjgft18yvxm5XoCQ==}
     engines: {node: '>=12'}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global-directory@4.0.1:
     resolution: {integrity: sha512-wHTUcDUoZ1H5/0iVqEudYW4/kAlN5cZ3j/bXn0Dpbizl9iaUVeWSHqiOjsgk6OW2bkLclbBjzewBz6weQ1zA2Q==}
@@ -576,11 +580,11 @@ packages:
     resolution: {integrity: sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==}
 
   hats-core@https://codeload.github.com/Hats-Protocol/hats-protocol/tar.gz/cccb71a061cdb9095af7d11dfdb47026993d8c4e:
-    resolution: {tarball: https://codeload.github.com/Hats-Protocol/hats-protocol/tar.gz/cccb71a061cdb9095af7d11dfdb47026993d8c4e}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/Hats-Protocol/hats-protocol/tar.gz/cccb71a061cdb9095af7d11dfdb47026993d8c4e}
     version: 0.0.0
 
   hats-zodiac@https://codeload.github.com/Hats-Protocol/hats-zodiac/tar.gz/2c0172e979e64f6f73647adc634a4622cba465ef:
-    resolution: {tarball: https://codeload.github.com/Hats-Protocol/hats-zodiac/tar.gz/2c0172e979e64f6f73647adc634a4622cba465ef}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/Hats-Protocol/hats-zodiac/tar.gz/2c0172e979e64f6f73647adc634a4622cba465ef}
     version: 0.0.0
 
   hmac-drbg@1.0.1:
@@ -790,6 +794,10 @@ packages:
     resolution: {integrity: sha512-wPrq66Llhl7/4AGC6I+cqxT07LhXvWL08LNXz1fENOw0Ap4sRZZ/gZpTTJ5jpurzzzfS2W/Ge9BY3LgLjCShcw==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  pacto-aa@https://codeload.github.com/covenant-gov/pacto-aa/tar.gz/3cc8c9471516b14d511964b5576ea09fb30df105:
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/covenant-gov/pacto-aa/tar.gz/3cc8c9471516b14d511964b5576ea09fb30df105}
+    version: 0.1.0
+
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
     engines: {node: '>=6'}
@@ -906,7 +914,7 @@ packages:
     resolution: {integrity: sha512-VyIbo6+gSw2XH/j9s3c2zJdpq+gYmOrSCzbU2zg+USponXwRfk/kJ1DGT/p+lENAYQOwddMlRR/GrvuD9CIPbg==}
 
   solidity-foundry-boilerplate@https://codeload.github.com/covenant-gov/pacto-gov/tar.gz/e12118911b3577147d3695604fd883723985f688:
-    resolution: {tarball: https://codeload.github.com/covenant-gov/pacto-gov/tar.gz/e12118911b3577147d3695604fd883723985f688}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/covenant-gov/pacto-gov/tar.gz/e12118911b3577147d3695604fd883723985f688}
     version: 1.0.0
 
   sort-object-keys@1.1.3:
@@ -1996,6 +2004,11 @@ snapshots:
   p-locate@6.0.0:
     dependencies:
       p-limit: 4.0.0
+
+  pacto-aa@https://codeload.github.com/covenant-gov/pacto-aa/tar.gz/3cc8c9471516b14d511964b5576ea09fb30df105:
+    dependencies:
+      '@account-abstraction/contracts': 0.7.0
+      '@openzeppelin/contracts': 5.1.0
 
   parent-module@1.0.1:
     dependencies:

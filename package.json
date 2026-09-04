@@ -15,9 +15,6 @@
     "commit": "pnpm lint:fix && pnpm lint:natspec && pnpm test:unit && pnpm test:integration",
     "coverage": "forge coverage --ir-minimum --report summary --report lcov --match-path 'test/unit/*' --no-match-coverage 'script/|test/integration/'",
     "cutover:paymaster:sepolia": "bash -c 'source .env && forge script CutoverPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --chain sepolia -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url sepolia --chain sepolia -vvvv'",
-    "deploy:7702:arbitrum": "bash -c 'source .env && forge script Deploy7702Account --rpc-url arbitrum --account $ARBITRUM_DEPLOYER_NAME --broadcast --chain arbitrum -vvvvv && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url arbitrum --chain arbitrum -vvvv'",
-    "deploy:7702:mainnet": "bash -c 'source .env && forge script Deploy7702Account --rpc-url mainnet --account $MAINNET_DEPLOYER_NAME --broadcast --chain mainnet -vvvvv && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url mainnet --chain mainnet -vvvv'",
-    "deploy:7702:sepolia": "bash -c 'source .env && forge script Deploy7702Account --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --chain sepolia -vvvvv && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url sepolia --chain sepolia -vvvv'",
     "deploy:arbitrum": "bash -c 'source .env && forge script Deploy --rpc-url arbitrum --account $ARBITRUM_DEPLOYER_NAME --broadcast --chain arbitrum -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url arbitrum --chain arbitrum -vvvv'",
     "deploy:mainnet": "bash -c 'source .env && forge script Deploy --rpc-url mainnet --account $MAINNET_DEPLOYER_NAME --broadcast --chain mainnet -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url mainnet --chain mainnet -vvvv'",
     "deploy:sepolia": "bash -c 'source .env && forge script Deploy --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --chain sepolia -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url sepolia --chain sepolia -vvvv'",
@@ -29,7 +26,6 @@
     "lint:sol": "solhint 'src/**/*.sol' 'script/**/*.sol' 'test/**/*.sol'",
     "prepare": "husky",
     "simulate-cutover:paymaster:sepolia": "bash -c 'source .env && forge script CutoverPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
-    "simulate-deploy:7702:sepolia": "bash -c 'source .env && forge script Deploy7702Account --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
     "simulate-deploy:sepolia": "bash -c 'source .env && forge script Deploy --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
     "simulate-fund:paymaster:sepolia": "bash -c 'source .env && forge script FundPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
     "test": "forge test -vvv",
@@ -38,9 +34,6 @@
     "test:integration": "forge test --match-contract E2E --fork-url mainnet --fork-block-number 22900000 -vvv",
     "test:unit": "forge test --match-contract Unit -vvv",
     "test:unit:deep": "FOUNDRY_FUZZ_RUNS=5000 pnpm test:unit",
-    "verify:7702:arbitrum": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url arbitrum --chain arbitrum -vvvv'",
-    "verify:7702:mainnet": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url mainnet --chain mainnet -vvvv'",
-    "verify:7702:sepolia": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script Verify7702Account --rpc-url sepolia --chain sepolia -vvvv'",
     "verify:arbitrum": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url arbitrum --chain arbitrum -vvvv'",
     "verify:mainnet": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url mainnet --chain mainnet -vvvv'",
     "verify:sepolia": "bash -c 'source .env && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url sepolia --chain sepolia -vvvv'"
@@ -56,6 +49,7 @@
     "@account-abstraction/contracts": "0.7.0",
     "@openzeppelin/contracts": "5.1.0",
     "hats-core": "github:Hats-Protocol/hats-protocol",
+    "pacto-aa": "github:covenant-gov/pacto-aa#3cc8c9471516b14d511964b5576ea09fb30df105",
     "pacto-gov": "github:covenant-gov/pacto-gov"
   },
   "devDependencies": {

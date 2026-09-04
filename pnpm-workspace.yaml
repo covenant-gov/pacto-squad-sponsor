@@ -1,10 +1,14 @@
 packages:
   - '.'
 
+# pacto-gov (and similar git deps) declare hats-core via github:; allow for resolution.
+blockExoticSubdeps: false
+
 allowBuilds:
   esbuild: true
   forge-std@https://codeload.github.com/foundry-rs/forge-std/tar.gz/1714bee72e286e73f76e320d110e0eaf5c4e649d: true
   fsevents: false
   hats-core@https://codeload.github.com/Hats-Protocol/hats-protocol/tar.gz/cccb71a061cdb9095af7d11dfdb47026993d8c4e: true
   hats-zodiac@https://codeload.github.com/Hats-Protocol/hats-zodiac/tar.gz/2c0172e979e64f6f73647adc634a4622cba465ef: true
+  pacto-aa@https://codeload.github.com/covenant-gov/pacto-aa/tar.gz/3cc8c9471516b14d511964b5576ea09fb30df105: true
   solidity-foundry-boilerplate@https://codeload.github.com/covenant-gov/pacto-gov/tar.gz/e12118911b3577147d3695604fd883723985f688: true
