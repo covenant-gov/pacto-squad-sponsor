@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
 import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
@@ -17,7 +18,7 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
  * @author Pacto
  * @notice ERC-4337 paymaster that validates squad clone registry, pool slot, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
- *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION`.
+ *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION` (registry-backed).
  */
 contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   using UserOperationLib for PackedUserOperation;
@@ -32,7 +33,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   bytes3 internal constant _EIP7702_PREFIX = 0xef0100;
 
   /// @inheritdoc IPactoSponsorPaymaster
-  address public immutable ALLOWED_7702_IMPLEMENTATION;
+  IPactoProtocolRegistry public immutable REGISTRY;
   /// @notice Factory used to anti-spoof squad clone addresses.
   ISquadSponsorFactory internal immutable _FACTORY;
 
@@ -41,19 +42,29 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Wires EntryPoint, squad factory, and EIP-7702 allowlist references.
+   * @notice Wires EntryPoint, squad factory, and protocol registry for the EIP-7702 allowlist.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
    * @param factory_ Squad sponsor factory singleton.
-   * @param allowed7702Implementation Canonical EIP-7702 account implementation (`address(0)` rejects all 7702).
+   * @param registry Username-system `PactoProtocolRegistry` (same instance as the global paymaster).
    */
   constructor(
     IEntryPoint entryPoint,
     ISquadSponsorFactory factory_,
-    address allowed7702Implementation
+    IPactoProtocolRegistry registry
   ) BasePaymaster(entryPoint) {
     if (address(factory_) == address(0)) revert SS_ZeroAddress();
+    if (address(registry) == address(0)) revert SS_ZeroAddress();
     _FACTORY = factory_;
-    ALLOWED_7702_IMPLEMENTATION = allowed7702Implementation;
+    REGISTRY = registry;
+  }
+
+  /*///////////////////////////////////////////////////////////////
+                            VIEWS
+  //////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc IPactoSponsorPaymaster
+  function ALLOWED_7702_IMPLEMENTATION() public view returns (address implementation) {
+    implementation = REGISTRY.allowed7702Implementation();
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -128,7 +139,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     } else if (_isEip7702Delegation(_code)) {
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
       address _impl = _eip7702Implementation(_code);
-      if (_impl != ALLOWED_7702_IMPLEMENTATION) revert SS_Invalid7702Implementation(_impl);
+      if (_impl != ALLOWED_7702_IMPLEMENTATION()) revert SS_Invalid7702Implementation(_impl);
     }
 
     eligible = ISquadSponsorBase(data.sponsor).isEligible(data.member);

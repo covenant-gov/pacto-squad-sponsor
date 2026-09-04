@@ -14,10 +14,11 @@ address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0
 
 /// @notice Public chain constants and deployed contract addresses.
 /// @dev Private values (RPC URLs, API keys, deployer keystore names) live in `.env` only.
-/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint, allowed7702)`;
-/// paymaster is created in the factory constructor. Deploy `PactoSimple7702Account` from pacto-aa first;
-/// scripts resolve allowlist from mirrored `eip7702-account.json` or `PACTO_7702_ACCOUNT`
-/// (live-chain scripts reject `address(0)`).
+/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint, protocolRegistry)`;
+/// paymaster is created in the factory constructor and reads EIP-7702 allowlist live from the
+/// username-system `PactoProtocolRegistry`. Resolve registry from mirrored `protocol-registry.json`
+/// or `PACTO_PROTOCOL_REGISTRY` (live-chain scripts reject `address(0)`). Day-2 allowlist bumps use
+/// username `registry.set(Allowed7702Implementation, …)` — not a squad cutover.
 /// Hats is not a constructor arg — it is baked into sponsor bytecode via `SquadSponsorConstants.HATS_ADDRESS`.
 library Constants {
   /**

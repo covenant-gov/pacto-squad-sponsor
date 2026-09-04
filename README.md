@@ -96,14 +96,14 @@ cast wallet import $SEPOLIA_DEPLOYER_NAME --interactive
 cast wallet import $ARBITRUM_DEPLOYER_NAME --interactive
 ```
 
-Deploy the EIP-7702 account from [pacto-aa](https://github.com/covenant-gov/pacto-aa) first, mirror `eip7702-account.json` into `deployments/<chainId>/` here (or set `PACTO_7702_ACCOUNT`), then deploy the sponsor system:
+Deploy / wire the username-system `PactoProtocolRegistry` first (7702 allowlist lives there — shared with the global paymaster). Mirror `protocol-registry.json` into `deployments/<chainId>/` here (or set `PACTO_PROTOCOL_REGISTRY`). Deploy the EIP-7702 account from [pacto-aa](https://github.com/covenant-gov/pacto-aa) and set the registry allowlist slot, then deploy the sponsor system:
 
 ```bash
-# in pacto-aa
-pnpm deploy:7702:sepolia
-# copy deployments/11155111/eip7702-account.json into this repo, then:
+# ensure deployments/<chainId>/protocol-registry.json (or PACTO_PROTOCOL_REGISTRY) is set
 pnpm deploy:sepolia
 ```
+
+Day-2 7702 bumps: update the registry allowlist in pacto-username-nft — do **not** cutover squad factory/paymaster for allowlist-only changes.
 
 ```bash
 pnpm deploy:arbitrum

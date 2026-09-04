@@ -157,7 +157,12 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
 
   function test_Unit_Factory_ConstructorZeroEntryPointReverts() external {
     vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'entryPoint'));
-    new SquadSponsorFactory(IEntryPoint(address(0)), address(0));
+    new SquadSponsorFactory(IEntryPoint(address(0)), address(_registry));
+  }
+
+  function test_Unit_Factory_ConstructorZeroRegistryReverts() external {
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
   }
 
   function test_Unit_Factory_DeploysPaymasterInConstructor() external view {

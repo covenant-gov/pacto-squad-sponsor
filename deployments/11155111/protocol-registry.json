@@ -1,0 +1,5 @@
+{
+  "chainId": 11155111,
+  "protocolRegistry": "0xAF61198bf3b9D8d49FA82888121c187720D6Cfe8",
+  "source": "pacto-username-nft deployments/11155111/full-system.json"
+}

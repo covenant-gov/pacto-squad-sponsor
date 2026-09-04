@@ -14,10 +14,12 @@ contract Deploy is SponsorDeploy {
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), Constants.create2Deployer());
     vm.stopBroadcast();
 
+    _assertLiveRegistryAllowlist(_protocolRegistry);
     _logDeployment();
     _writeFullSystemJson(
       _config.entryPoint,
       _config.navePirataRegistry,
+      _protocolRegistry,
       address(_factory),
       address(_paymaster),
       _factory.sponsorImplementation(),

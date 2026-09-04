@@ -280,6 +280,11 @@ contract E2ESquadSponsorFactoryTest is IntegrationBase {
 
   function test_e2e_factoryConstructor_revertsOnZeroEntryPoint() public {
     vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'entryPoint'));
-    new SquadSponsorFactory(IEntryPoint(address(0)), address(0));
+    new SquadSponsorFactory(IEntryPoint(address(0)), address(_mockRegistry));
+  }
+
+  function test_e2e_factoryConstructor_revertsOnZeroRegistry() public {
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    new SquadSponsorFactory(IEntryPoint(_config.entryPoint), address(0));
   }
 }

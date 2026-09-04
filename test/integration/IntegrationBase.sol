@@ -16,6 +16,8 @@ import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {Test} from 'forge-std/Test.sol';
 
+import {MockProtocolRegistry} from 'test/unit/helpers/MockProtocolRegistry.sol';
+
 /**
  * @title IntegrationBase
  * @author Pacto
@@ -33,6 +35,7 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
   uint256 internal constant _E2E_POOL_DEPOSIT = 5 ether;
 
   bool internal _integrationForkActive;
+  MockProtocolRegistry internal _mockRegistry;
 
   bytes32 internal _squadId;
   SquadSponsorExt internal _extSponsor;
@@ -73,9 +76,15 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
   function setUp() public virtual {
     _requireEthereumMainnetFork();
     _config = Constants.getConfig(block.chainid);
+    _mockRegistry = new MockProtocolRegistry();
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), address(this));
     _stranger = makeAddr('e2eStranger');
     _fund(_stranger, 1 ether);
+  }
+
+  /// @dev Integration tests inject a mock registry (live username registry is not on mainnet fork fixtures).
+  function _resolveProtocolRegistryForDeploy() internal view override returns (address registry) {
+    registry = address(_mockRegistry);
   }
 
   function _requireEthereumMainnetFork() internal virtual {

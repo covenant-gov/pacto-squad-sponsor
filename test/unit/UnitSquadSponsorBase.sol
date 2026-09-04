@@ -12,6 +12,8 @@ import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 import {IERC165} from '@openzeppelin/contracts/utils/introspection/IERC165.sol';
 import {Test} from 'forge-std/Test.sol';
 
+import {MockProtocolRegistry} from 'test/unit/helpers/MockProtocolRegistry.sol';
+
 /**
  * @title UnitSquadSponsorBase
  * @author Pacto
@@ -24,6 +26,7 @@ abstract contract UnitSquadSponsorBase is Test {
 
   SquadSponsorFactory internal _factory;
   PactoSponsorPaymaster internal _paymaster;
+  MockProtocolRegistry internal _registry;
 
   bytes32 internal _squadId = keccak256('squad-alpha');
 
@@ -38,7 +41,8 @@ abstract contract UnitSquadSponsorBase is Test {
       abi.encode(true)
     );
 
-    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
+    _registry = new MockProtocolRegistry();
+    _factory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(_registry));
     _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
   }
 
