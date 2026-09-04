@@ -7,6 +7,7 @@ import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorPool} from 'contracts/SquadSponsorPool.sol';
 import {SquadSponsorConstants} from 'contracts/utils/constants/SquadSponsorConstants.sol';
 
+import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
@@ -60,13 +61,17 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   /**
    * @notice Deploys the chain paymaster and master copies for squad clones.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
-   * @param allowed7702Implementation Canonical EIP-7702 account implementation allowlisted by the paymaster
-   *        (`address(0)` rejects all EIP-7702 delegated senders).
+   * @param protocolRegistry Username-system `PactoProtocolRegistry` (same instance as the global paymaster).
+   *        The paymaster reads `allowed7702Implementation()` live from this registry.
    */
-  constructor(IEntryPoint entryPoint, address allowed7702Implementation) {
+  constructor(IEntryPoint entryPoint, address protocolRegistry) {
     if (address(entryPoint) == address(0)) revert SS_ZeroField('entryPoint');
-    PAYMASTER =
-      address(new PactoSponsorPaymaster(entryPoint, ISquadSponsorFactory(address(this)), allowed7702Implementation));
+    if (protocolRegistry == address(0)) revert SS_ZeroAddress();
+    PAYMASTER = address(
+      new PactoSponsorPaymaster(
+        entryPoint, ISquadSponsorFactory(address(this)), IPactoProtocolRegistry(protocolRegistry)
+      )
+    );
     sponsorImplementation = address(new SquadSponsor());
     extImplementation = address(new SquadSponsorExt());
     poolImplementation = address(new SquadSponsorPool());

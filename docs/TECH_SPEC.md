@@ -120,10 +120,10 @@ flowchart LR
 **v1 supports both EOAs and contract wallets.** Paymaster resolves the **beneficiary member** from `paymasterAndData` (see §4.2):
 
 - Empty-code EOA ⇒ `sender == member`.
-- EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == ALLOWED_7702_IMPLEMENTATION` (immutable on the paymaster; set via `SquadSponsorFactory` ctor / `PACTO_7702_ACCOUNT`).
+- EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == ALLOWED_7702_IMPLEMENTATION()` (registry-backed view on the paymaster; reads username-system `PactoProtocolRegistry.allowed7702Implementation()`, same instance as the global paymaster). Update via registry owner `set(Allowed7702Implementation, …)` — no factory/paymaster redeploy.
 - Other smart accounts (e.g. Safe) ⇒ `member` in payload only (signer → `member` mapping **deferred**).
 
-**EIP-7702 set-code target:** Pacto-owned [`PactoSimple7702Account`](../src/contracts/PactoSimple7702Account.sol) — storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`. Publish address in `deployments/<chainId>/eip7702-account.json`. Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
+**EIP-7702 set-code target:** Owned by [pacto-aa](https://github.com/covenant-gov/pacto-aa) — [`PactoSimple7702Account`](https://github.com/covenant-gov/pacto-aa/blob/dev/src/contracts/PactoSimple7702Account.sol) (storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`, IERC721 + IERC1155 receivers). Canonical **allowlist** is the username `PactoProtocolRegistry` slot (shared with global paymaster). Canonical **bytecode deploy** artifact: [pacto-aa `deployments/<chainId>/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json); this repo mirrors that file and `protocol-registry.json` for forge scripts. Client contract: [pacto-aa `docs/CLIENT_CONTRACT.md`](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md). Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
 
 References:
 
@@ -284,14 +284,14 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
 4. Check `pool.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
 5. **Member binding / 7702 allowlist:**
    - EOA (`code.length == 0`): require `sender == member`.
-   - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION` (else `SS_Invalid7702Implementation`).
+   - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`).
    - Other smart accounts: skip binding (Safe signer mapping **deferred**).
 6. **`sponsor.isEligible(member)`** — Ext address list or hat rules on that clone.
 7. `postOp` (success only) → `pool.spendGas(actualGasCost)` (context encodes the pool).
 
 **Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps.
 
-**Implemented for 7702:** `ALLOWED_7702_IMPLEMENTATION` on `PactoSponsorPaymaster` (factory constructor arg).
+**Implemented for 7702:** `ALLOWED_7702_IMPLEMENTATION()` on `PactoSponsorPaymaster` is a view over immutable `REGISTRY` → `allowed7702Implementation()` (username-system `PactoProtocolRegistry`; factory constructor arg is the registry address).
 ### 4.3 `SquadSponsorExt` + `SquadSponsor` clones (mirrors `SquadAdminExt` + `SquadAdmin`)
 
 **One eligibility clone per registered `squadId`** — ETH lives on the parent `SquadSponsorPool`. `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** clone address.
@@ -495,7 +495,7 @@ Optional: deep link for sponsor to `deposit(squadId)` with suggested amount.
 | Reentrancy from spend | CEI; `spendGas` nonReentrant |
 | Sponsor share inflation | `mulDiv` on deposit; no donation attack without ETH |
 | Unmapped ETH lock | `saviourWithdraw` + explicit `unallocated` accounting |
-| Malicious 7702 implementation | Paymaster allowlists `ALLOWED_7702_IMPLEMENTATION`; app must not sign arbitrary delegation |
+| Malicious 7702 implementation | Paymaster allowlists via registry-backed `ALLOWED_7702_IMPLEMENTATION()`; app must not sign arbitrary delegation |
 | Cross-squad drain | `squadId` in paymaster data must match linked `topHatId`; no spend without balance on that id |
 | Upgrade clone swap | Read `upgradeAt` on every validation (cache in indexer off-chain, verify on-chain) |
 

@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Constants} from 'script/Constants.sol';
 import {SponsorDeploy} from 'script/SponsorDeploy.sol';
 
+import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
 import {IPactoSimple7702Account} from 'interfaces/IPactoSimple7702Account.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
@@ -13,10 +14,12 @@ import {console} from 'forge-std/console.sol';
 /**
  * @title CutoverPaymasterOps
  * @author Pacto
- * @notice One-shot Sepolia (or other live-chain) cutover: redeploy factory+paymaster with a non-zero
- *         EIP-7702 allowlist, fund EntryPoint deposit + FCFS stake, write `full-system.json`.
- * @dev Does **not** redeploy `PactoSimple7702Account`. Resolve allowlist from
- *      `deployments/<chainId>/eip7702-account.json` or `PACTO_7702_ACCOUNT`.
+ * @notice One-shot live-chain cutover: redeploy factory+paymaster wired to `PactoProtocolRegistry`,
+ *         fund EntryPoint deposit + FCFS stake, write `full-system.json`.
+ * @dev Does **not** redeploy `PactoSimple7702Account` (owned by pacto-aa). Resolve registry from
+ *      mirrored `deployments/<chainId>/protocol-registry.json` or `PACTO_PROTOCOL_REGISTRY`.
+ *      Day-2 EIP-7702 allowlist bumps use username `registry.set(Allowed7702Implementation, …)` —
+ *      do **not** use this cutover for allowlist-only updates.
  *
  *      Env (optional funding knobs):
  *      - `PAYMASTER_EP_DEPOSIT_WEI` (default 0.1 ether)
@@ -32,8 +35,10 @@ contract CutoverPaymasterOps is SponsorDeploy {
   function run() external {
     _config = Constants.getConfig(block.chainid);
 
-    address _allowed7702 = _allowed7702Implementation();
-    require(_allowed7702 != address(0), 'cutover: zero 7702 allowlist');
+    address _registry = _protocolRegistryAddress();
+    require(_registry != address(0), 'cutover: zero protocol registry');
+    address _allowed7702 = IPactoProtocolRegistry(_registry).allowed7702Implementation();
+    require(_allowed7702 != address(0), 'cutover: zero 7702 allowlist on registry');
     require(
       address(IPactoSimple7702Account(_allowed7702).entryPoint()) == _config.entryPoint, 'cutover: 7702 EP mismatch'
     );
@@ -48,6 +53,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     address _broadcaster = _broadcastDeployer();
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), Constants.create2Deployer());
 
+    require(address(_paymaster.REGISTRY()) == _registry, 'cutover: REGISTRY mismatch');
     require(_paymaster.ALLOWED_7702_IMPLEMENTATION() == _allowed7702, 'cutover: allowlist mismatch');
     require(_factory.PAYMASTER() == address(_paymaster), 'cutover: factory PAYMASTER mismatch');
     require(address(_paymaster.entryPoint()) == _config.entryPoint, 'cutover: paymaster EP mismatch');
@@ -62,6 +68,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     require(_factory.paymasterStaker() == _broadcaster, 'cutover: paymasterStaker mismatch');
 
     _logDeployment();
+    console.log('ProtocolRegistry:', _registry);
     console.log('ALLOWED_7702_IMPLEMENTATION:', _allowed7702);
     console.log('EP deposit (wei):', _depositWei);
     console.log('Stake (wei):', _stakeWei);
@@ -71,6 +78,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     _writeFullSystemJson(
       _config.entryPoint,
       _config.navePirataRegistry,
+      _registry,
       address(_factory),
       address(_paymaster),
       _factory.sponsorImplementation(),

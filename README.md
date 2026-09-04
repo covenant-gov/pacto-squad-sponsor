@@ -15,7 +15,8 @@ v1 targets Ethereum Mainnet, Sepolia, and Arbitrum One.
 | [`PactoSponsorPaymaster`](src/contracts/PactoSponsorPaymaster.sol) | ERC-4337 EntryPoint v0.7 paymaster. Spends from the parent pool when the clone occupies a slot. |
 | [`SquadSponsorExt`](src/contracts/SquadSponsorExt.sol) | Address-based eligibility. Typical live path before Hats exist (`defacto`). |
 | [`SquadSponsor`](src/contracts/SquadSponsor.sol) | Hat-based eligibility (hat-first clone, Ext after `postInitialize`, or war-game round). |
-| [`PactoSimple7702Account`](src/contracts/PactoSimple7702Account.sol) | Pacto-owned EIP-7702 account implementation. |
+
+EIP-7702 account implementation lives in [pacto-aa](https://github.com/covenant-gov/pacto-aa) (`PactoSimple7702Account`). Client contract: [pacto-aa `docs/CLIENT_CONTRACT.md`](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md).
 
 Each parent squad gets one primary pool per chain (optional extra pools via `createFreshPool`). Eligibility clones hold no ETH. `SquadSponsorExt.postInitialize` wires Hats on that clone (one-way; hats override the address list). War-game rounds use `createWarGameSponsor` after `deployNavePirata` and never occupy production `squadId`.
 
@@ -25,7 +26,7 @@ Each parent squad gets one primary pool per chain (optional extra pools via `cre
 - [`docs/DESKTOP_CLIENT_INTEGRATION.md`](docs/DESKTOP_CLIENT_INTEGRATION.md) — ERC-4337 / 7702 client guide for `pacto-app`
 - [`docs/PACTO_GOV_FOLLOWUPS.md`](docs/PACTO_GOV_FOLLOWUPS.md) — wiring required in pacto-gov
 
-Sepolia addresses: [`deployments/11155111/full-system.json`](deployments/11155111/full-system.json) and [`deployments/11155111/eip7702-account.json`](deployments/11155111/eip7702-account.json).
+Sepolia addresses: [`deployments/11155111/full-system.json`](deployments/11155111/full-system.json). EIP-7702 account (canonical in pacto-aa; mirrored here): [`deployments/11155111/eip7702-account.json`](deployments/11155111/eip7702-account.json) → [`pacto-aa artifact`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (`0x2E9156deE65d7946305C334824e2648Ff9128f45`).
 
 ## Setup
 
@@ -95,20 +96,20 @@ cast wallet import $SEPOLIA_DEPLOYER_NAME --interactive
 cast wallet import $ARBITRUM_DEPLOYER_NAME --interactive
 ```
 
-Deploy the EIP-7702 account first, then the sponsor system (allowlist resolves from `eip7702-account.json`, or set `PACTO_7702_ACCOUNT`):
+Deploy / wire the username-system `PactoProtocolRegistry` first (7702 allowlist lives there — shared with the global paymaster). Mirror `protocol-registry.json` into `deployments/<chainId>/` here (or set `PACTO_PROTOCOL_REGISTRY`). Deploy the EIP-7702 account from [pacto-aa](https://github.com/covenant-gov/pacto-aa) and set the registry allowlist slot, then deploy the sponsor system:
 
 ```bash
-pnpm deploy:7702:sepolia
+# ensure deployments/<chainId>/protocol-registry.json (or PACTO_PROTOCOL_REGISTRY) is set
 pnpm deploy:sepolia
 ```
 
+Day-2 7702 bumps: update the registry allowlist in pacto-username-nft — do **not** cutover squad factory/paymaster for allowlist-only changes.
+
 ```bash
-pnpm deploy:7702:arbitrum
 pnpm deploy:arbitrum
 ```
 
 ```bash
-pnpm deploy:7702:mainnet
 pnpm deploy:mainnet
 ```
 
@@ -119,13 +120,13 @@ pnpm simulate-fund:paymaster:sepolia
 pnpm fund:paymaster:sepolia
 ```
 
-If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702). Do **not** use cutover to top up the live Sepolia paymaster.
+If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702 — use pacto-aa for that). Do **not** use cutover to top up the live Sepolia paymaster.
 
 ```bash
 pnpm cutover:paymaster:sepolia
 ```
 
-Artifacts: `deployments/<chainId>/eip7702-account.json` and `deployments/<chainId>/full-system.json`. Broadcast traces are under `./broadcast`.
+Artifacts: mirrored `deployments/<chainId>/eip7702-account.json` (from pacto-aa) and `deployments/<chainId>/full-system.json`. Broadcast traces are under `./broadcast`.
 
 See the [Foundry Book](https://book.getfoundry.sh/reference/forge/forge-create.html) for extra `forge` options.
 
