@@ -11,6 +11,7 @@ import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOperation.sol';
 
 import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
+import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
 /**
@@ -20,8 +21,9 @@ import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
  * @dev Set-code target for roster EOAs. Validates bare ECDSA over `userOpHash`
  *      (`ECDSA.recover` == `address(this)`). No EIP-191 personal_sign; no MAv2 packing.
  *      Behavior mirrors eth-infinitism Simple7702Account, pinned to EP v0.7.
+ *      Implements IERC721Receiver so `_safeMint` to a delegated EOA does not empty-revert.
  */
-contract PactoSimple7702Account is IPactoSimple7702Account, BaseAccount, IERC1271 {
+contract PactoSimple7702Account is IPactoSimple7702Account, BaseAccount, IERC1271, IERC721Receiver {
   /// @notice Canonical EntryPoint v0.7 (same address on mainnet / Sepolia / Arbitrum).
   IEntryPoint private constant _ENTRY_POINT = IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
 
@@ -35,6 +37,11 @@ contract PactoSimple7702Account is IPactoSimple7702Account, BaseAccount, IERC127
   function execute(address dest, uint256 value, bytes calldata func) external {
     _requireFromEntryPointOrSelf();
     _call(dest, value, func);
+  }
+
+  /// @inheritdoc IERC721Receiver
+  function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+    return IERC721Receiver.onERC721Received.selector;
   }
 
   /// @inheritdoc IERC1271

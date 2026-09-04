@@ -10,6 +10,7 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
 import {SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS} from '@account-abstraction/core/Helpers.sol';
 
 import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
+import {IERC721Receiver} from '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
 
 import {Test} from 'forge-std/Test.sol';
 
@@ -106,6 +107,11 @@ contract UnitPactoSimple7702Account is Test {
     vm.prank(_stranger);
     vm.expectRevert('not from self or EntryPoint');
     PactoSimple7702Account(payable(_owner)).execute(makeAddr('target'), 0, '');
+  }
+
+  function test_Unit_7702Account_OnERC721Received_ReturnsSelector() external {
+    bytes4 _magic = PactoSimple7702Account(payable(_owner)).onERC721Received(address(0), address(0), 1, '');
+    assertEq(_magic, IERC721Receiver.onERC721Received.selector);
   }
 
   function test_Unit_7702Account_IsValidSignature_AcceptsOwner() external view {
