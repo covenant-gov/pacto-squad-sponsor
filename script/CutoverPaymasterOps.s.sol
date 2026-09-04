@@ -15,8 +15,8 @@ import {console} from 'forge-std/console.sol';
  * @author Pacto
  * @notice One-shot Sepolia (or other live-chain) cutover: redeploy factory+paymaster with a non-zero
  *         EIP-7702 allowlist, fund EntryPoint deposit + FCFS stake, write `full-system.json`.
- * @dev Does **not** redeploy `PactoSimple7702Account`. Resolve allowlist from
- *      `deployments/<chainId>/eip7702-account.json` or `PACTO_7702_ACCOUNT`.
+ * @dev Does **not** redeploy `PactoSimple7702Account` (owned by pacto-aa). Resolve allowlist from
+ *      mirrored `deployments/<chainId>/eip7702-account.json` or `PACTO_7702_ACCOUNT`.
  *
  *      Env (optional funding knobs):
  *      - `PAYMASTER_EP_DEPOSIT_WEI` (default 0.1 ether)

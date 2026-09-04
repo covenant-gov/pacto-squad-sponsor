@@ -62,7 +62,7 @@ contract VerifyDeploy is Script {
     _verify(_factoryContract.poolImplementation(), _POOL, _chain, _encEmpty);
   }
 
-  /// @dev Prefer `eip7702-account.json`, then `PACTO_7702_ACCOUNT` (same as deploy scripts).
+  /// @dev Prefer mirrored `eip7702-account.json` (from pacto-aa), then `PACTO_7702_ACCOUNT`.
   function _resolveExpected7702() internal view returns (address allowed7702) {
     string memory eip7702Path = string.concat('deployments/', vm.toString(block.chainid), '/eip7702-account.json');
     try vm.readFile(eip7702Path) returns (string memory eip7702Json) {

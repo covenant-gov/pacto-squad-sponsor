@@ -26,7 +26,8 @@ abstract contract DeploymentArtifacts is Script {
     return string.concat('deployments/', vm.toString(block.chainid), '/', filename);
   }
 
-  /// @notice Reads `pactoSimple7702Account` from `deployments/<chainId>/eip7702-account.json` when present.
+  /// @notice Reads `pactoSimple7702Account` from mirrored `deployments/<chainId>/eip7702-account.json` when present.
+  /// @dev Canonical artifact lives in pacto-aa; keep a copy here for forge allowlist resolution.
   function _readPactoSimple7702FromArtifact() internal view returns (address account) {
     try vm.readFile(_deploymentJsonPath('eip7702-account.json')) returns (string memory json) {
       account = json.readAddress('.pactoSimple7702Account');
@@ -35,7 +36,7 @@ abstract contract DeploymentArtifacts is Script {
     }
   }
 
-  /// @notice Prefer committed 7702 artifact, then `PACTO_7702_ACCOUNT` env.
+  /// @notice Prefer mirrored pacto-aa `eip7702-account.json`, then `PACTO_7702_ACCOUNT` env.
   function _resolveAllowed7702Implementation() internal view returns (address allowed7702) {
     allowed7702 = _readPactoSimple7702FromArtifact();
     if (allowed7702 != address(0)) return allowed7702;
@@ -69,21 +70,5 @@ abstract contract DeploymentArtifacts is Script {
     vm.serializeAddress(k, 'poolImplementation', poolImplementation);
     string memory json = vm.serializeAddress(k, 'deployer', deployer);
     _writeDeploymentJson(json, 'full-system.json');
-  }
-
-  function _writeEip7702AccountJson(
-    address entryPoint,
-    address pactoSimple7702Account,
-    bytes32 salt,
-    address deployer
-  ) internal {
-    if (!_shouldWriteDeploymentJson()) return;
-    string memory k = 'eip7702_account';
-    vm.serializeUint(k, 'chainId', block.chainid);
-    vm.serializeAddress(k, 'entryPoint', entryPoint);
-    vm.serializeAddress(k, 'pactoSimple7702Account', pactoSimple7702Account);
-    vm.serializeBytes32(k, 'salt', salt);
-    string memory json = vm.serializeAddress(k, 'deployer', deployer);
-    _writeDeploymentJson(json, 'eip7702-account.json');
   }
 }

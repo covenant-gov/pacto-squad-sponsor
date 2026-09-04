@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {PactoSimple7702Account} from 'contracts/PactoSimple7702Account.sol';
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
+import {PactoSimple7702Account} from 'pacto-aa/contracts/PactoSimple7702Account.sol';
 
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';

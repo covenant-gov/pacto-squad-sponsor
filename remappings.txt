@@ -9,3 +9,4 @@ hats-core/=node_modules/hats-core/src/
 @openzeppelin/contracts/=node_modules/@openzeppelin/contracts/
 @account-abstraction/=node_modules/@account-abstraction/contracts/
 @pacto-gov/=node_modules/pacto-gov/src/
+pacto-aa/=node_modules/pacto-aa/src/
