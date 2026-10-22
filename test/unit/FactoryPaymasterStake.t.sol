@@ -150,4 +150,13 @@ contract UnitFactoryPaymasterStake is UnitSquadSponsorBase {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAmount.selector);
     _factory.withdrawPaymasterDeposit(_recipient, 0);
   }
+
+  function test_Unit_Factory_WithdrawPaymasterDeposit_ZeroToReverts() external {
+    vm.prank(_staker);
+    _factory.addPaymasterStake{value: 0.1 ether}(1 days);
+
+    vm.prank(_staker);
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    _factory.withdrawPaymasterDeposit(payable(address(0)), 1 ether);
+  }
 }

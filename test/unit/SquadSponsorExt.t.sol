@@ -2,6 +2,10 @@
 pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
+import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
+
+import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
+
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
@@ -205,6 +209,15 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
 
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
     SquadSponsorExt(payable(_clone)).initialize(_squadId, address(0), address(0), _owner);
+  }
+
+  function test_Unit_Ext_InitializePoolMismatchReverts() external {
+    address _clone = Clones.clone(_factory.extImplementation());
+    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
+    address _foreignPool = _otherFactory.createPool(_squadId);
+
+    vm.expectRevert(ISquadSponsorCommon.SS_PoolMismatch.selector);
+    SquadSponsorExt(payable(_clone)).initialize(_squadId, address(_factory), _foreignPool, _owner);
   }
 
   function test_Unit_Ext_NotPermittedBeforeWiring() external view {

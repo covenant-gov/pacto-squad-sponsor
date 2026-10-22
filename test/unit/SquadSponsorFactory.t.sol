@@ -386,10 +386,65 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
     _factory.createPool(bytes32(0));
   }
 
+  function test_Unit_Factory_CreateFreshPoolZeroParentReverts() external {
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
+    _factory.createFreshPool(bytes32(0));
+  }
+
   function test_Unit_Factory_WrongPoolParentReverts() external {
     bytes32 _otherId = keccak256('other-parent');
     address _otherPool = _factory.createPool(_otherId);
     vm.expectRevert(ISquadSponsorCommon.SS_PoolParentMismatch.selector);
     _factory.createSquadSponsorExt(_squadId, _rosterOwner, _otherPool);
+  }
+
+  function test_Unit_Factory_ForeignPoolFactoryMismatchReverts() external {
+    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
+    address _foreignPool = _otherFactory.createPool(_squadId);
+
+    vm.expectRevert(ISquadSponsorCommon.SS_PoolMismatch.selector);
+    _factory.createSquadSponsorExt(_squadId, _rosterOwner, _foreignPool);
+  }
+
+  function test_Unit_Factory_CreateWarGameExtAgainstFreshPool() external {
+    address _fresh = _factory.createFreshPool(_squadId);
+
+    vm.prank(_creator);
+    (address _sponsor, uint256 _round, bytes32 _gameSquadId) =
+      _factory.createWarGameSponsorExt(_squadId, _rosterOwner, _fresh);
+
+    assertEq(_round, 1);
+    assertEq(_gameSquadId, _factory.warGameSquadId(_squadId, 1));
+    assertEq(ISquadSponsorBase(_sponsor).pool(), _fresh);
+    assertEq(_poolOf(_sponsor).wargame(), _sponsor);
+    assertEq(_factory.poolOf(_squadId), _fresh);
+  }
+
+  function test_Unit_Factory_CreateWarGameHatsAgainstFreshPool() external {
+    address _fresh = _factory.createFreshPool(_squadId);
+    uint256[] memory _customHats = new uint256[](0);
+
+    (address _sponsor, uint256 _round,) =
+      _factory.createWarGameSponsor(_squadId, 0x100, address(0), _customHats, _fresh);
+
+    assertEq(_round, 1);
+    assertEq(ISquadSponsorBase(_sponsor).pool(), _fresh);
+    assertEq(_poolOf(_sponsor).wargame(), _sponsor);
+  }
+
+  function test_Unit_Factory_CreateWarGameHatsZeroParentReverts() external {
+    uint256[] memory _customHats = new uint256[](0);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
+    _factory.createWarGameSponsor(bytes32(0), 0x100, address(0), _customHats);
+  }
+
+  function test_Unit_Factory_RegisterHatsWiringSuccess() external {
+    vm.prank(_creator);
+    address _sponsor = _factory.createSquadSponsorExt(_squadId, _creator);
+
+    vm.prank(_sponsor);
+    _factory.registerHatsWiring(_squadId, 0x777);
+
+    assertEq(_factory.squads(_squadId).topHatId, 0x777);
   }
 }
