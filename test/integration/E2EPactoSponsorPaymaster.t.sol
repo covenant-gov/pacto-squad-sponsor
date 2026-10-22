@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import {PactoSponsorPaymaster} from 'contracts/PactoSponsorPaymaster.sol';
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 
-import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
@@ -179,13 +178,6 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
 
   function test_e2e_paymasterConstructor_revertsOnZeroFactory() public {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    new PactoSponsorPaymaster(IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(0)), _mockRegistry);
-  }
-
-  function test_e2e_paymasterConstructor_revertsOnZeroRegistry() public {
-    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    new PactoSponsorPaymaster(
-      IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(_factory)), IPactoProtocolRegistry(address(0))
-    );
+    new PactoSponsorPaymaster(IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(0)), address(0));
   }
 }

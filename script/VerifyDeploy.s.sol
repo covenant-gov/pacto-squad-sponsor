@@ -17,15 +17,14 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  * @dev Requires `FOUNDRY_PROFILE=verify` (`ffi = true` in `[profile.verify]` only). Run after `Deploy`.
  *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`, `poolImplementation`).
  *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
- *      Asserts on-chain allowlist **source**: `REGISTRY()` matches resolved protocol registry and
- *      `ALLOWED_7702_IMPLEMENTATION()` equals `registry.allowed7702Implementation()`.
+ *      Asserts `ALLOWED_7702_IMPLEMENTATION()` equals `registry.allowed7702Implementation()` from the
+ *      deployment artifacts. Those addresses are set equal at deploy time. Validation does not call the registry.
  */
 contract VerifyDeploy is Script {
   using stdJson for string;
 
   error UnsupportedChain(uint256 chainId);
   error VerifyDeploy_ZeroProtocolRegistry();
-  error VerifyDeploy_RegistryMismatch(address onChain, address expected);
   error VerifyDeploy_AllowlistMismatch(address onChain, address expected);
 
   string internal constant _FACTORY = 'src/contracts/SquadSponsorFactory.sol:SquadSponsorFactory';
@@ -43,16 +42,17 @@ contract VerifyDeploy is Script {
     address _paymaster = _json.readAddress('.pactoSponsorPaymaster');
     address _expectedRegistry = _resolveExpectedRegistry(_json);
     if (_expectedRegistry == address(0)) revert VerifyDeploy_ZeroProtocolRegistry();
+    address _expected7702 = IPactoProtocolRegistry(_expectedRegistry).allowed7702Implementation();
 
-    _assertAllowlistSource(_paymaster, _expectedRegistry);
+    _assertAllowlist(_paymaster, _expected7702);
 
     console.log('Verifying sponsor contracts on', _chain);
-    _verify(_factory, _FACTORY, _chain, abi.encode(IEntryPoint(_entryPoint), _expectedRegistry));
+    _verify(_factory, _FACTORY, _chain, abi.encode(IEntryPoint(_entryPoint), _expected7702));
     _verify(
       _paymaster,
       _PAYMASTER,
       _chain,
-      abi.encode(IEntryPoint(_entryPoint), ISquadSponsorFactory(_factory), IPactoProtocolRegistry(_expectedRegistry))
+      abi.encode(IEntryPoint(_entryPoint), ISquadSponsorFactory(_factory), _expected7702)
     );
     ISquadSponsorFactory _factoryContract = ISquadSponsorFactory(_factory);
     bytes memory _encEmpty = new bytes(0);
@@ -61,26 +61,19 @@ contract VerifyDeploy is Script {
     _verify(_factoryContract.poolImplementation(), _POOL, _chain, _encEmpty);
   }
 
-  function _assertAllowlistSource(address paymaster, address expectedRegistry) internal view {
-    address _onChainRegistry = address(IPactoSponsorPaymaster(paymaster).REGISTRY());
-    if (_onChainRegistry != expectedRegistry) {
-      revert VerifyDeploy_RegistryMismatch(_onChainRegistry, expectedRegistry);
-    }
-
-    address _registryAllowlist = IPactoProtocolRegistry(expectedRegistry).allowed7702Implementation();
+  function _assertAllowlist(address paymaster, address expected7702) internal view {
     address _onChainAllowlist = IPactoSponsorPaymaster(paymaster).ALLOWED_7702_IMPLEMENTATION();
-    if (_onChainAllowlist != _registryAllowlist) {
-      revert VerifyDeploy_AllowlistMismatch(_onChainAllowlist, _registryAllowlist);
+    if (_onChainAllowlist != expected7702) {
+      revert VerifyDeploy_AllowlistMismatch(_onChainAllowlist, expected7702);
     }
 
     address _artifact7702 = _resolveExpected7702();
     if (_artifact7702 != address(0) && _onChainAllowlist != _artifact7702) {
-      console.log('WARN: registry allowlist differs from eip7702-account.json / PACTO_7702_ACCOUNT');
-      console.log('  registry:', _onChainAllowlist);
+      console.log('WARN: paymaster allowlist differs from eip7702-account.json / PACTO_7702_ACCOUNT');
+      console.log('  paymaster:', _onChainAllowlist);
       console.log('  artifact:', _artifact7702);
     }
 
-    console.log('REGISTRY ok:', _onChainRegistry);
     console.log('ALLOWED_7702_IMPLEMENTATION ok:', _onChainAllowlist);
   }
 

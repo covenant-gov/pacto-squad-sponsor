@@ -7,7 +7,6 @@ import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorPool} from 'contracts/SquadSponsorPool.sol';
 import {SquadSponsorConstants} from 'contracts/utils/constants/SquadSponsorConstants.sol';
 
-import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
@@ -61,17 +60,11 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   /**
    * @notice Deploys the chain paymaster and master copies for squad clones.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
-   * @param protocolRegistry Username-system `PactoProtocolRegistry` (same instance as the global paymaster).
-   *        The paymaster reads `allowed7702Implementation()` live from this registry.
+   * @param allowed7702 EIP-7702 account the paymaster accepts. `address(0)` rejects all delegated senders.
    */
-  constructor(IEntryPoint entryPoint, address protocolRegistry) {
+  constructor(IEntryPoint entryPoint, address allowed7702) {
     if (address(entryPoint) == address(0)) revert SS_ZeroField('entryPoint');
-    if (protocolRegistry == address(0)) revert SS_ZeroAddress();
-    PAYMASTER = address(
-      new PactoSponsorPaymaster(
-        entryPoint, ISquadSponsorFactory(address(this)), IPactoProtocolRegistry(protocolRegistry)
-      )
-    );
+    PAYMASTER = address(new PactoSponsorPaymaster(entryPoint, ISquadSponsorFactory(address(this)), allowed7702));
     sponsorImplementation = address(new SquadSponsor());
     extImplementation = address(new SquadSponsorExt());
     poolImplementation = address(new SquadSponsorPool());
@@ -235,6 +228,11 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
   /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
+
+  /// @inheritdoc ISquadSponsorFactory
+  function sponsorOf(bytes32 squadId) external view returns (address sponsor) {
+    sponsor = _squads[squadId].sponsor;
+  }
 
   /// @inheritdoc ISquadSponsorFactory
   function squads(bytes32 squadId) external view returns (SquadRecord memory record) {

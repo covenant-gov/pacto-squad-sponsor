@@ -91,10 +91,10 @@ contract SquadSponsor is ISquadSponsor, SquadSponsorBase {
     if (topHatId == 0) return false;
 
     if (registry != address(0)) {
-      INavePirataRegistry.Deployment memory _deployment = INavePirataRegistry(registry).deployment(topHatId);
-      if (_deployment.topHatId != 0) {
-        if (_HATS.isWearerOfHat(member, _deployment.crewHatId)) return true;
-        if (_HATS.isWearerOfHat(member, _deployment.captainHatId)) return true;
+      (uint256 _captainHatId, uint256 _crewHatId) = INavePirataRegistry(registry).crewAndCaptainHats(topHatId);
+      if (_captainHatId != 0 || _crewHatId != 0) {
+        if (_HATS.isWearerOfHat(member, _crewHatId)) return true;
+        if (_HATS.isWearerOfHat(member, _captainHatId)) return true;
       }
     }
 

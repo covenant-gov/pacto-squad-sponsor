@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
+import {Eip7702Lib} from 'contracts/libraries/Eip7702Lib.sol';
+import {PaymasterHeadroomLib} from 'contracts/libraries/PaymasterHeadroomLib.sol';
 import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
@@ -18,22 +19,16 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
  * @author Pacto
  * @notice ERC-4337 paymaster that validates squad clone registry, pool slot, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
- *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION` (registry-backed).
+ *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION`.
  */
 contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   using UserOperationLib for PackedUserOperation;
 
   /// @inheritdoc IPactoSponsorPaymaster
   uint8 public constant PAYMASTER_DATA_VERSION = 1;
-  /// @notice Pool balance headroom required vs `maxCost` (115%).
-  uint256 internal constant _BALANCE_HEADROOM_BPS = 11_500;
-  /// @notice EIP-7702 designated-code prefix (`0xef0100`) length including the 20-byte implementation.
-  uint256 internal constant _EIP7702_CODE_LENGTH = 23;
-  /// @notice EIP-7702 designated-code magic prefix.
-  bytes3 internal constant _EIP7702_PREFIX = 0xef0100;
 
   /// @inheritdoc IPactoSponsorPaymaster
-  IPactoProtocolRegistry public immutable REGISTRY;
+  address public immutable ALLOWED_7702_IMPLEMENTATION;
   /// @notice Factory used to anti-spoof squad clone addresses.
   ISquadSponsorFactory internal immutable _FACTORY;
 
@@ -42,29 +37,15 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Wires EntryPoint, squad factory, and protocol registry for the EIP-7702 allowlist.
+   * @notice Wires EntryPoint, squad factory, and the EIP-7702 allowlist.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
    * @param factory_ Squad sponsor factory singleton.
-   * @param registry Username-system `PactoProtocolRegistry` (same instance as the global paymaster).
+   * @param allowed7702 EIP-7702 account implementation. `address(0)` rejects all delegated senders.
    */
-  constructor(
-    IEntryPoint entryPoint,
-    ISquadSponsorFactory factory_,
-    IPactoProtocolRegistry registry
-  ) BasePaymaster(entryPoint) {
+  constructor(IEntryPoint entryPoint, ISquadSponsorFactory factory_, address allowed7702) BasePaymaster(entryPoint) {
     if (address(factory_) == address(0)) revert SS_ZeroAddress();
-    if (address(registry) == address(0)) revert SS_ZeroAddress();
     _FACTORY = factory_;
-    REGISTRY = registry;
-  }
-
-  /*///////////////////////////////////////////////////////////////
-                            VIEWS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @inheritdoc IPactoSponsorPaymaster
-  function ALLOWED_7702_IMPLEMENTATION() public view returns (address implementation) {
-    implementation = REGISTRY.allowed7702Implementation();
+    ALLOWED_7702_IMPLEMENTATION = allowed7702;
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -96,12 +77,12 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     _validateRegistry(_data);
 
     address _pool = ISquadSponsorBase(_data.sponsor).pool();
-    if (ISquadSponsorPool(_pool).defacto() != _data.sponsor && ISquadSponsorPool(_pool).wargame() != _data.sponsor) {
+    (address _defacto, address _wargame) = ISquadSponsorPool(_pool).spendSlots();
+    if (_defacto != _data.sponsor && _wargame != _data.sponsor) {
       revert SS_SponsorNotInPoolSlot(_data.sponsor);
     }
 
-    uint256 _requiredBalance = (maxCost * _BALANCE_HEADROOM_BPS) / 10_000;
-    if (ISquadSponsorPool(_pool).spendablePoolWei() < _requiredBalance) {
+    if (ISquadSponsorPool(_pool).spendablePoolWei() < PaymasterHeadroomLib.requiredWei(maxCost)) {
       return ('', SIG_VALIDATION_FAILED);
     }
 
@@ -118,8 +99,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
    * @param data Parsed paymaster payload.
    */
   function _validateRegistry(PaymasterData memory data) internal view {
-    ISquadSponsorFactory.SquadRecord memory _record = _FACTORY.squads(data.squadId);
-    if (_record.sponsor != data.sponsor) {
+    if (_FACTORY.sponsorOf(data.squadId) != data.sponsor) {
       revert SS_CloneMismatch(data.squadId);
     }
   }
@@ -136,34 +116,13 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     bytes memory _code = sender.code;
     if (_code.length == 0) {
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
-    } else if (_isEip7702Delegation(_code)) {
+    } else if (Eip7702Lib.isDelegation(_code)) {
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
-      address _impl = _eip7702Implementation(_code);
-      if (_impl != ALLOWED_7702_IMPLEMENTATION()) revert SS_Invalid7702Implementation(_impl);
+      address _impl = Eip7702Lib.implementation(_code);
+      if (_impl != ALLOWED_7702_IMPLEMENTATION) revert SS_Invalid7702Implementation(_impl);
     }
 
     eligible = ISquadSponsorBase(data.sponsor).isEligible(data.member);
-  }
-
-  /**
-   * @notice True when `code` is an EIP-7702 delegation stub (`0xef0100 || address`).
-   * @param code Account bytecode.
-   * @return isDelegation Whether the code matches the 23-byte designated format.
-   */
-  function _isEip7702Delegation(bytes memory code) internal pure returns (bool isDelegation) {
-    return code.length == _EIP7702_CODE_LENGTH && bytes3(code) == _EIP7702_PREFIX;
-  }
-
-  /**
-   * @notice Extracts the implementation address from an EIP-7702 delegation stub.
-   * @param code 23-byte designated code (`0xef0100 || implementation`).
-   * @return implementation Delegated contract address.
-   */
-  function _eip7702Implementation(bytes memory code) internal pure returns (address implementation) {
-    // code layout: [0..2]=0xef0100, [3..22]=implementation. Skip length word + 3-byte prefix.
-    assembly ('memory-safe') {
-      implementation := shr(96, mload(add(code, 35)))
-    }
   }
 
   /**

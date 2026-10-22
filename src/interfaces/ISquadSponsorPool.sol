@@ -81,6 +81,14 @@ interface ISquadSponsorPool is ISquadSponsorCommon {
   function factory() external view returns (address factory);
 
   /**
+   * @notice Production and war-game sponsors permitted to spend this pool.
+   * @dev Hot-path read of both slots. `defacto()` and `wargame()` remain the individual views.
+   * @return defacto Defacto slot occupant (`address(0)` if unset).
+   * @return wargame Wargame slot occupant (`address(0)` if unset).
+   */
+  function spendSlots() external view returns (address defacto, address wargame);
+
+  /**
    * @notice Production sponsor currently permitted to spend this pool.
    * @return sponsor Defacto slot occupant (`address(0)` if unset).
    */

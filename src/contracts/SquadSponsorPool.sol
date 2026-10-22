@@ -140,6 +140,12 @@ contract SquadSponsorPool is ISquadSponsorPool, Initializable {
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc ISquadSponsorPool
+  function spendSlots() external view returns (address defacto_, address wargame_) {
+    defacto_ = defacto;
+    wargame_ = wargame;
+  }
+
+  /// @inheritdoc ISquadSponsorPool
   function spendablePoolWei() external view returns (uint256 amount) {
     amount = _spendablePoolWei;
   }

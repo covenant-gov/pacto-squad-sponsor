@@ -268,6 +268,15 @@ interface ISquadSponsorFactory is ISquadSponsorCommon {
   function poolNonce(bytes32 parentSquadId) external view returns (uint256 nonce);
 
   /**
+   * @notice Sponsor clone registered for `squadId`.
+   * @dev Hot-path read of `_squads[squadId].sponsor`. Returns `address(0)` when the squad is unknown.
+   *      `squads()` remains the indexer view.
+   * @param squadId Squad identifier.
+   * @return sponsor Sponsor clone address.
+   */
+  function sponsorOf(bytes32 squadId) external view returns (address sponsor);
+
+  /**
    * @notice Registry row for a squad.
    * @param squadId Squad identifier.
    * @return record Sponsor clone, variant, top hat id, and pool.
