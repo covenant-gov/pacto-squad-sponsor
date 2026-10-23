@@ -14,11 +14,12 @@ address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0
 
 /// @notice Public chain constants and deployed contract addresses.
 /// @dev Private values (RPC URLs, API keys, deployer keystore names) live in `.env` only.
-/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys `SquadSponsorFactory(entryPoint, allowed7702)`.
-/// The paymaster stores that address as an immutable. Resolve it from mirrored `eip7702-account.json`
-/// or `PACTO_7702_ACCOUNT` (live-chain scripts reject `address(0)`). `protocol-registry.json` is still
-/// recorded so verify can check the immutable equals `allowed7702Implementation()`. A new allowlist
-/// requires a new factory and paymaster.
+/// @dev Deploy (`script/Deploy.sol`) CREATE2-deploys
+/// `SquadSponsorFactory(entryPoint, allowed7702, allowlistAdmin)`. The paymaster stores the allowlist
+/// in a storage slot; `ALLOWLIST_ADMIN` may rotate it. Resolve the seed from mirrored
+/// `eip7702-account.json` or `PACTO_7702_ACCOUNT`, and the admin from `ALLOWLIST_ADMIN` (live-chain
+/// scripts reject `address(0)` for both). `protocol-registry.json` is still recorded so verify can
+/// check the seeded allowlist equals `allowed7702Implementation()`.
 /// Hats is not a constructor arg — it is baked into sponsor bytecode via `SquadSponsorConstants.HATS_ADDRESS`.
 library Constants {
   /**

@@ -22,6 +22,26 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
   }
 
   /*///////////////////////////////////////////////////////////////
+                            EVENTS
+  //////////////////////////////////////////////////////////////*/
+  /**
+   * @notice EIP-7702 allowlist updated by `ALLOWLIST_ADMIN`.
+   * @param previous Previous allowed implementation (`address(0)` rejects all stubs).
+   * @param implementation New allowed implementation.
+   */
+  event Allowed7702ImplementationSet(address indexed previous, address indexed implementation);
+
+  /*///////////////////////////////////////////////////////////////
+                            LOGIC
+  //////////////////////////////////////////////////////////////*/
+  /**
+   * @notice Update the EIP-7702 implementation allowlist.
+   * @dev Only `ALLOWLIST_ADMIN`. `address(0)` rejects every EIP-7702 delegated sender.
+   * @param allowed7702 Canonical `PactoSimple7702Account` (or zero).
+   */
+  function setAllowed7702Implementation(address allowed7702) external;
+
+  /*///////////////////////////////////////////////////////////////
                             VIEWS
   //////////////////////////////////////////////////////////////*/
   /**
@@ -31,10 +51,16 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
   function PAYMASTER_DATA_VERSION() external view returns (uint8 version);
 
   /**
+   * @notice Account authorized to call `setAllowed7702Implementation`.
+   * @return admin Immutable allowlist admin set at construction.
+   */
+  function ALLOWLIST_ADMIN() external view returns (address admin);
+
+  /**
    * @notice Allowed EIP-7702 account implementation (set-code target).
-   * @dev Immutable, set at construction. `address(0)` rejects all EIP-7702 delegated senders.
-   *      A new allowlist requires a new factory and paymaster. Deploy sets this to the same address as
-   *      `PactoProtocolRegistry.allowed7702Implementation()`; validation does not read that registry.
+   * @dev Storage slot (not immutable). `address(0)` rejects all EIP-7702 delegated senders.
+   *      Deploy seeds this to match `PactoProtocolRegistry.allowed7702Implementation()`; validation
+   *      does not read that registry. `ALLOWLIST_ADMIN` may rotate or revoke without redeploying pools.
    * @return implementation Canonical `PactoSimple7702Account` (or zero).
    */
   function ALLOWED_7702_IMPLEMENTATION() external view returns (address implementation);

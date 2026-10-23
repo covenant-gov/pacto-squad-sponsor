@@ -157,7 +157,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
 
   function test_Unit_Factory_ConstructorZeroEntryPointReverts() external {
     vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'entryPoint'));
-    new SquadSponsorFactory(IEntryPoint(address(0)), address(0));
+    new SquadSponsorFactory(IEntryPoint(address(0)), address(0), address(this));
   }
 
   function test_Unit_Factory_DeploysPaymasterInConstructor() external view {
@@ -399,7 +399,7 @@ contract UnitSquadSponsorFactory is UnitSquadSponsorBase {
   }
 
   function test_Unit_Factory_ForeignPoolFactoryMismatchReverts() external {
-    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
+    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0), address(this));
     address _foreignPool = _otherFactory.createPool(_squadId);
 
     vm.expectRevert(ISquadSponsorCommon.SS_PoolMismatch.selector);

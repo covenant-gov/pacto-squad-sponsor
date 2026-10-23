@@ -20,11 +20,13 @@ import {console} from 'forge-std/console.sol';
  *      CREATE2 deployer is `CREATE2_DEFAULT_DEPLOYER` in `forge script` (Foundry's Create2Deployer);
  *      integration tests pass `address(this)` because they deploy without broadcast.
  *      Paymaster address = first CREATE child of the factory (`nonce` 1).
- *      Factory ctor takes the EIP-7702 account address. That address is recorded as an immutable on the paymaster.
+ *      Factory ctor takes `(entryPoint, allowed7702, allowlistAdmin)`. The allowlist is storage on the
+ *      paymaster; `allowlistAdmin` may rotate it without redeploying pools.
  */
 abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   error SponsorDeploy_ZeroProtocolRegistry();
   error SponsorDeploy_Zero7702Allowlist();
+  error SponsorDeploy_ZeroAllowlistAdmin();
 
   struct DeployAddresses {
     address factory;
@@ -37,6 +39,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   Constants.ChainConfig internal _config;
   address internal _protocolRegistry;
   address internal _allowed7702;
+  address internal _allowlistAdmin;
 
   /// @dev Override when a non-default CREATE2 salt is required.
   function _deploySaltFactory() internal view virtual returns (bytes32 saltFactory) {
@@ -46,14 +49,16 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   /// @notice Full chain bootstrap: CREATE2 factory; paymaster is deployed inside the factory constructor.
   function _deployFullSystem(address entryPoint, bytes32 saltFactory, address deployer) internal virtual {
     address _allowed = _allowed7702Address();
+    address _admin = _allowlistAdminAddress();
     address _registry = _protocolRegistryAddress();
-    bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint, _allowed);
+    bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint, _allowed, _admin);
     address _predictedFactory = vm.computeCreate2Address(saltFactory, _initCodeHash, deployer);
     address _predictedPaymaster = vm.computeCreateAddress(_predictedFactory, 1);
 
-    _factory = new SquadSponsorFactory{salt: saltFactory}(IEntryPoint(entryPoint), _allowed);
+    _factory = new SquadSponsorFactory{salt: saltFactory}(IEntryPoint(entryPoint), _allowed, _admin);
     _paymaster = PactoSponsorPaymaster(payable(_factory.PAYMASTER()));
     _allowed7702 = _allowed;
+    _allowlistAdmin = _admin;
     _protocolRegistry = _registry;
 
     require(address(_factory) == _predictedFactory, 'factory address mismatch');
@@ -84,10 +89,23 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     }
   }
 
-  /// @dev Optional assertion helper: the paymaster immutable must be non-zero on public chains.
+  /// @dev Optional assertion helper: the paymaster allowlist must be non-zero on public chains.
   function _assertLiveAllowed7702(address allowed7702) internal view {
     if (!_requireNonZeroOnLiveScript()) return;
     if (allowed7702 == address(0)) revert SponsorDeploy_Zero7702Allowlist();
+  }
+
+  /// @dev `ALLOWLIST_ADMIN` env. Live public-chain scripts reject `address(0)`.
+  function _allowlistAdminAddress() internal view virtual returns (address admin) {
+    admin = _resolveAllowlistAdminForDeploy();
+    if (admin == address(0) && _requireNonZeroOnLiveScript()) {
+      revert SponsorDeploy_ZeroAllowlistAdmin();
+    }
+  }
+
+  /// @dev Prefer `ALLOWLIST_ADMIN`. Tests override to return `address(this)`.
+  function _resolveAllowlistAdminForDeploy() internal view virtual returns (address admin) {
+    admin = vm.envOr('ALLOWLIST_ADMIN', address(0));
   }
 
   /// @dev Enforce non-zero 7702 and protocol-registry artifact only for script broadcasts on public chains.
@@ -97,9 +115,15 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     return _isForgeScriptContext();
   }
 
-  function _factoryInitCodeHash(address entryPoint, address allowed7702) internal pure returns (bytes32 initCodeHash) {
+  function _factoryInitCodeHash(
+    address entryPoint,
+    address allowed7702,
+    address allowlistAdmin
+  ) internal pure returns (bytes32 initCodeHash) {
     initCodeHash = keccak256(
-      abi.encodePacked(type(SquadSponsorFactory).creationCode, abi.encode(IEntryPoint(entryPoint), allowed7702))
+      abi.encodePacked(
+        type(SquadSponsorFactory).creationCode, abi.encode(IEntryPoint(entryPoint), allowed7702, allowlistAdmin)
+      )
     );
   }
 
@@ -107,6 +131,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     console.log('SquadSponsorFactory:', address(_factory));
     console.log('PactoSponsorPaymaster:', address(_paymaster));
     console.log('ProtocolRegistry:', _protocolRegistry);
+    console.log('ALLOWLIST_ADMIN:', _paymaster.ALLOWLIST_ADMIN());
     console.log('ALLOWED_7702_IMPLEMENTATION:', _paymaster.ALLOWED_7702_IMPLEMENTATION());
     console.log('Sponsor implementation:', _factory.sponsorImplementation());
     console.log('Ext implementation:', _factory.extImplementation());

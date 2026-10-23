@@ -213,7 +213,7 @@ contract UnitSquadSponsorExt is UnitSquadSponsorBase {
 
   function test_Unit_Ext_InitializePoolMismatchReverts() external {
     address _clone = Clones.clone(_factory.extImplementation());
-    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0));
+    SquadSponsorFactory _otherFactory = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), address(0), address(this));
     address _foreignPool = _otherFactory.createPool(_squadId);
 
     vm.expectRevert(ISquadSponsorCommon.SS_PoolMismatch.selector);

@@ -61,10 +61,12 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
    * @notice Deploys the chain paymaster and master copies for squad clones.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
    * @param allowed7702 EIP-7702 account the paymaster accepts. `address(0)` rejects all delegated senders.
+   * @param allowlistAdmin Non-zero admin authorized to rotate the paymaster 7702 allowlist.
    */
-  constructor(IEntryPoint entryPoint, address allowed7702) {
+  constructor(IEntryPoint entryPoint, address allowed7702, address allowlistAdmin) {
     if (address(entryPoint) == address(0)) revert SS_ZeroField('entryPoint');
-    PAYMASTER = address(new PactoSponsorPaymaster(entryPoint, ISquadSponsorFactory(address(this)), allowed7702));
+    PAYMASTER =
+      address(new PactoSponsorPaymaster(entryPoint, ISquadSponsorFactory(address(this)), allowed7702, allowlistAdmin));
     sponsorImplementation = address(new SquadSponsor());
     extImplementation = address(new SquadSponsorExt());
     poolImplementation = address(new SquadSponsorPool());

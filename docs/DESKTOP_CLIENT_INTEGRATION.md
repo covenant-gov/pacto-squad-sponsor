@@ -28,7 +28,7 @@ A UserOp is sponsored when **all** of the following hold:
    - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears the crew or captain hat from `crewAndCaptainHats(topHatId)` (both zero falls through), or a configured `customEligibleHats` hat.
 5. Member binding:
    - **EOA sender** (`userOp.sender.code.length == 0`): `sender == member` (else hard revert `SS_InvalidMemberBinding`).
-   - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s immutable `ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`). That address is fixed at construction. A new allowlist requires a new factory and paymaster. Prefer `paymaster.ALLOWED_7702_IMPLEMENTATION()`; pacto-aa’s [`eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) is the deploy input and should match `PactoProtocolRegistry.allowed7702Implementation()` at deploy time. Validation does not read the registry.
+   - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s storage `ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`). Deploy seeds that slot from pacto-aa’s [`eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (must match `PactoProtocolRegistry.allowed7702Implementation()`). `ALLOWLIST_ADMIN` may rotate or revoke it without redeploying pools. Validation does not read the registry.
    - **Other smart-account sender** (Safe, etc.): hard revert `SS_UnsupportedSender`. Safe signer → `member` binding is **deferred**; until then only EOA / EIP-7702 senders are accepted.
 
 Hat wearers with **0 native ETH** are exactly the clients this path serves: gas comes from the squad pool via `spendGas` in `postOp`, not from the roster key balance.
@@ -47,7 +47,7 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 | Bare EOA as UserOp `sender` without 7702 / account code | **Not executable** | EntryPoint cannot validate the op. |
 | Legacy `eth_sendTransaction` from roster key | **Not sponsored** | Current app failure mode (`insufficient funds`). |
 
-**Paymaster note on 7702:** After successful 7702 set-code, the sender has designated code `0xef0100 || PactoSimple7702Account`. The paymaster **still** requires `sender == member` and that the delegated implementation matches the immutable `ALLOWED_7702_IMPLEMENTATION()`. A new account address requires a new squad factory and paymaster. Other contract wallets (non-7702) revert `SS_UnsupportedSender`.
+**Paymaster note on 7702:** After successful 7702 set-code, the sender has designated code `0xef0100 || PactoSimple7702Account`. The paymaster **still** requires `sender == member` and that the delegated implementation matches `ALLOWED_7702_IMPLEMENTATION()`. `ALLOWLIST_ADMIN` can rotate that slot; existing pools keep the same paymaster. Other contract wallets (non-7702) revert `SS_UnsupportedSender`.
 
 **Client signing contract (PactoSimple7702Account):** owned by [pacto-aa](https://github.com/covenant-gov/pacto-aa); see [CLIENT_CONTRACT.md](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md).
 
@@ -66,7 +66,7 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 ## 3. Addresses (Sepolia)
 
 Source of truth for deployed Sepolia **sponsor** contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).  
-Source of truth for the **EIP-7702 allowlist** on a deployed squad paymaster: `PactoSponsorPaymaster.ALLOWED_7702_IMPLEMENTATION()` (immutable). Deploy sets it from [`eip7702-account.json`](../deployments/11155111/eip7702-account.json). Verify checks that value equals username-system `PactoProtocolRegistry.allowed7702Implementation()` in [`protocol-registry.json`](../deployments/11155111/protocol-registry.json). The paymaster does not read the registry at validation time.  
+Source of truth for the **EIP-7702 allowlist** on a deployed squad paymaster: `PactoSponsorPaymaster.ALLOWED_7702_IMPLEMENTATION()` (storage; rotatable by `ALLOWLIST_ADMIN`). Deploy seeds it from [`eip7702-account.json`](../deployments/11155111/eip7702-account.json). Verify checks that value equals username-system `PactoProtocolRegistry.allowed7702Implementation()` in [`protocol-registry.json`](../deployments/11155111/protocol-registry.json). The paymaster does not read the registry at validation time.  
 Source of truth for the **EIP-7702 account** bytecode deploy: [pacto-aa `deployments/11155111/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (mirrored here for forge assertions — do not deploy 7702 from this repo).  
 Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id `11155111`), including `erc4337.accountImplementation` matching the live registry slot.
 
@@ -236,7 +236,7 @@ See vector `sample_external_call_bootstrapCrew` in the golden JSON for exact hex
 | `SS_InvalidVersion(version)` | Hard revert | Payload version ≠ `1` | Rebuild `paymasterAndData` with version `1`. |
 | `SS_CloneMismatch(squadId)` | Hard revert | `sponsor` ≠ `factory.sponsorOf(squadId)` | Refresh clone address from factory; never trust a client-supplied sponsor alone. |
 | `SS_InvalidMemberBinding(sender, member)` | Hard revert | EOA / 7702 `sender ≠ member` | Set both to the roster EVM (eligibility subject). |
-| `SS_Invalid7702Implementation(impl)` | Hard revert | 7702 stub delegates to a non-allowlisted impl | Set-code to `pactoSimple7702Account` from `eip7702-account.json`; redeploy factory if allowlist was wrong. |
+| `SS_Invalid7702Implementation(impl)` | Hard revert | 7702 stub delegates to a non-allowlisted impl | Set-code to `pactoSimple7702Account` from `eip7702-account.json`, or have `ALLOWLIST_ADMIN` rotate the paymaster allowlist. |
 | `SS_UnsupportedSender(sender)` | Hard revert | Contract sender is not a valid EIP-7702 stub | Use EOA + 7702 set-code; Safe/other AA senders are not sponsored yet. |
 | `validationData == 1` (`SIG_VALIDATION_FAILED`) | Soft fail | Ineligible member, `member == 0`, or `spendablePoolWei` &lt; `maxCost × 115%` | Check `isEligible(member)`; fund pool; lower gas / `maxCost`. |
 | Bundler `-32502` / banned opcode | Bundler | Paymaster unstaked or legacy `BALANCE` validation | Stake via factory (≥0.1 ETH, ≥1 day); use redeployed paymaster with `spendablePoolWei`. |
@@ -296,7 +296,7 @@ Gas spend reduces everyone’s withdrawable amount proportionally. Expose Treasu
 | 7702 vs 4337 | Both: **4337 UserOp is mandatory**; **7702 is the EOA transport** so roster keys can be UserOp senders. Documented above. |
 | Calldata / gas limits for `bootstrapCrew` | **None on-chain.** Client + bundler sizing only; maintain 115% pool headroom. |
 | Safe signer → `member` | **Deferred** — non-7702 contract senders currently revert `SS_UnsupportedSender`. |
-| 7702 implementation allowlist | **Implemented** — immutable `ALLOWED_7702_IMPLEMENTATION()`; EIP-7702 stubs must match that address. A new allowlist redeploys the factory and paymaster. |
+| 7702 implementation allowlist | **Implemented** — storage `ALLOWED_7702_IMPLEMENTATION()` rotatable by `ALLOWLIST_ADMIN`; EIP-7702 stubs must match that address. |
 | Calldata allowlists | **Deferred** — app must only build permitted gov module calls. |
 
 ---

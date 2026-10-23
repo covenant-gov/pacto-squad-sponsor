@@ -6,6 +6,8 @@ import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
 import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 import {PactoSimple7702Account} from 'pacto-aa/contracts/PactoSimple7702Account.sol';
 
+import {IPactoSponsorPaymaster} from 'interfaces/IPactoSponsorPaymaster.sol';
+import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 
@@ -301,14 +303,64 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
 
   function test_Unit_Paymaster_ConstructorRevertsZeroFactory() external {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)), address(0));
+    new PactoSponsorPaymaster(IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(0)), address(0), address(this));
+  }
+
+  function test_Unit_Paymaster_ConstructorRevertsZeroAllowlistAdmin() external {
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    new PactoSponsorPaymaster(
+      IEntryPoint(_ENTRY_POINT), ISquadSponsorFactory(address(_factory)), address(0), address(0)
+    );
+  }
+
+  function test_Unit_Paymaster_AllowlistAdminCanRotateWithoutNewPool() external {
+    PactoSimple7702Account _oldImpl = new PactoSimple7702Account();
+    PactoSimple7702Account _newImpl = new PactoSimple7702Account();
+    (PactoSponsorPaymaster _wired, address _wiredSponsor, bytes32 _wiredSquad) = _deployAllowlisted(address(_oldImpl));
+    address _pool = ISquadSponsorBase(_wiredSponsor).pool();
+
+    assertEq(_wired.ALLOWLIST_ADMIN(), address(this));
+    assertEq(_wired.ALLOWED_7702_IMPLEMENTATION(), address(_oldImpl));
+
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_oldImpl)));
+    SquadSponsorExt(payable(_wiredSponsor)).setPermittedAddress(_member, true);
+
+    PackedUserOperation memory _userOp = _userOpFor(_wired, _wiredSquad, _wiredSponsor, _member, _member);
+    vm.prank(_ENTRY_POINT);
+    (, uint256 _before) = _wired.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+    assertEq(_before, 0);
+
+    vm.expectEmit(true, true, false, true, address(_wired));
+    emit IPactoSponsorPaymaster.Allowed7702ImplementationSet(address(_oldImpl), address(_newImpl));
+    _wired.setAllowed7702Implementation(address(_newImpl));
+    assertEq(_wired.ALLOWED_7702_IMPLEMENTATION(), address(_newImpl));
+
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(
+      abi.encodeWithSelector(ISquadSponsorCommon.SS_Invalid7702Implementation.selector, address(_oldImpl))
+    );
+    _wired.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+
+    vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_newImpl)));
+    PackedUserOperation memory _rotatedOp = _userOpFor(_wired, _wiredSquad, _wiredSponsor, _member, _member);
+    vm.prank(_ENTRY_POINT);
+    (, uint256 _after) = _wired.validatePaymasterUserOp(_rotatedOp, bytes32(0), 1 ether);
+    assertEq(_after, 0);
+    assertEq(ISquadSponsorBase(_wiredSponsor).pool(), _pool);
+  }
+
+  function test_Unit_Paymaster_SetAllowlistUnauthorizedReverts() external {
+    address _outsider = makeAddr('allowlistOutsider');
+    vm.prank(_outsider);
+    vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
+    _paymaster.setAllowed7702Implementation(makeAddr('newImpl'));
   }
 
   function _deployAllowlisted(address allowed7702)
     internal
     returns (PactoSponsorPaymaster paymaster, address sponsor, bytes32 squadId)
   {
-    SquadSponsorFactory _wired = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), allowed7702);
+    SquadSponsorFactory _wired = new SquadSponsorFactory(IEntryPoint(_ENTRY_POINT), allowed7702, address(this));
     paymaster = PactoSponsorPaymaster(payable(_wired.PAYMASTER()));
     squadId = keccak256(abi.encodePacked('allowlist', allowed7702));
     vm.deal(address(this), 5 ether);

@@ -18,7 +18,7 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`, `poolImplementation`).
  *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
  *      Asserts `ALLOWED_7702_IMPLEMENTATION()` equals `registry.allowed7702Implementation()` from the
- *      deployment artifacts. Those addresses are set equal at deploy time. Validation does not call the registry.
+ *      deployment artifacts (seeded equal at deploy; admin may rotate later). Validation does not call the registry.
  */
 contract VerifyDeploy is Script {
   using stdJson for string;
@@ -47,12 +47,13 @@ contract VerifyDeploy is Script {
     _assertAllowlist(_paymaster, _expected7702);
 
     console.log('Verifying sponsor contracts on', _chain);
-    _verify(_factory, _FACTORY, _chain, abi.encode(IEntryPoint(_entryPoint), _expected7702));
+    address _allowlistAdmin = IPactoSponsorPaymaster(_paymaster).ALLOWLIST_ADMIN();
+    _verify(_factory, _FACTORY, _chain, abi.encode(IEntryPoint(_entryPoint), _expected7702, _allowlistAdmin));
     _verify(
       _paymaster,
       _PAYMASTER,
       _chain,
-      abi.encode(IEntryPoint(_entryPoint), ISquadSponsorFactory(_factory), _expected7702)
+      abi.encode(IEntryPoint(_entryPoint), ISquadSponsorFactory(_factory), _expected7702, _allowlistAdmin)
     );
     ISquadSponsorFactory _factoryContract = ISquadSponsorFactory(_factory);
     bytes memory _encEmpty = new bytes(0);

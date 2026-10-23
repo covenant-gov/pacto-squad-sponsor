@@ -83,6 +83,11 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
     allowed7702 = address(0);
   }
 
+  /// @dev Test contract acts as allowlist admin for integration fixtures.
+  function _resolveAllowlistAdminForDeploy() internal view override returns (address admin) {
+    admin = address(this);
+  }
+
   function _requireEthereumMainnetFork() internal virtual {
     if (HATS_PROTOCOL_V1.code.length > 0) {
       _integrationForkActive = true;

@@ -185,6 +185,15 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
 
   function test_e2e_paymasterConstructor_revertsOnZeroFactory() public {
     vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
-    new PactoSponsorPaymaster(IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(0)), address(0));
+    new PactoSponsorPaymaster(
+      IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(0)), address(0), address(this)
+    );
+  }
+
+  function test_e2e_paymasterConstructor_revertsOnZeroAllowlistAdmin() public {
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    new PactoSponsorPaymaster(
+      IEntryPoint(_config.entryPoint), ISquadSponsorFactory(address(_factory)), address(0), address(0)
+    );
   }
 }

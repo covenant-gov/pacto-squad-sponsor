@@ -29,7 +29,11 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   uint8 public constant PAYMASTER_DATA_VERSION = 1;
 
   /// @inheritdoc IPactoSponsorPaymaster
-  address public immutable ALLOWED_7702_IMPLEMENTATION;
+  address public immutable ALLOWLIST_ADMIN;
+
+  /// @inheritdoc IPactoSponsorPaymaster
+  address public ALLOWED_7702_IMPLEMENTATION;
+
   /// @notice Factory used to anti-spoof squad clone addresses.
   ISquadSponsorFactory internal immutable _FACTORY;
 
@@ -38,14 +42,21 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   //////////////////////////////////////////////////////////////*/
 
   /**
-   * @notice Wires EntryPoint, squad factory, and the EIP-7702 allowlist.
+   * @notice Wires EntryPoint, squad factory, EIP-7702 allowlist, and allowlist admin.
    * @param entryPoint ERC-4337 EntryPoint v0.7 for this chain.
    * @param factory_ Squad sponsor factory singleton.
    * @param allowed7702 EIP-7702 account implementation. `address(0)` rejects all delegated senders.
+   * @param allowlistAdmin Non-zero account authorized to rotate the allowlist.
    */
-  constructor(IEntryPoint entryPoint, ISquadSponsorFactory factory_, address allowed7702) BasePaymaster(entryPoint) {
-    if (address(factory_) == address(0)) revert SS_ZeroAddress();
+  constructor(
+    IEntryPoint entryPoint,
+    ISquadSponsorFactory factory_,
+    address allowed7702,
+    address allowlistAdmin
+  ) BasePaymaster(entryPoint) {
+    if (address(factory_) == address(0) || allowlistAdmin == address(0)) revert SS_ZeroAddress();
     _FACTORY = factory_;
+    ALLOWLIST_ADMIN = allowlistAdmin;
     ALLOWED_7702_IMPLEMENTATION = allowed7702;
   }
 
@@ -56,6 +67,14 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   /// @notice Forwards stray ETH into the EntryPoint deposit so it cannot strand on this contract.
   receive() external payable {
     entryPoint.depositTo{value: msg.value}(address(this));
+  }
+
+  /// @inheritdoc IPactoSponsorPaymaster
+  function setAllowed7702Implementation(address allowed7702) external {
+    if (msg.sender != ALLOWLIST_ADMIN) revert SS_NotAuthorized();
+    address _previous = ALLOWED_7702_IMPLEMENTATION;
+    ALLOWED_7702_IMPLEMENTATION = allowed7702;
+    emit Allowed7702ImplementationSet(_previous, allowed7702);
   }
 
   /*///////////////////////////////////////////////////////////////
