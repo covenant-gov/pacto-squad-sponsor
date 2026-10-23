@@ -135,16 +135,27 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
-  function test_Unit_Paymaster_ValidatesSmartAccountMember() external {
+  function test_Unit_Paymaster_RejectsSmartAccountSender() external {
     MockSmartAccount _smartAccount = new MockSmartAccount();
     SquadSponsorExt(payable(_sponsor)).setPermittedAddress(_member, true);
 
     PackedUserOperation memory _userOp = _buildUserOp(address(_smartAccount), _member);
 
     vm.prank(_ENTRY_POINT);
-    (, uint256 _validationData) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_UnsupportedSender.selector, address(_smartAccount)));
+    _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+  }
 
-    assertEq(_validationData, 0);
+  function test_Unit_Paymaster_RejectsNonDelegationTwentyThreeByteCode() external {
+    // 23 bytes without the 0xef0100 prefix (Foundry rejects etching fake 0xef01* versions).
+    bytes memory _junk = abi.encodePacked(bytes3(0x000000), address(_member));
+    vm.etch(_member, _junk);
+
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
+
+    vm.prank(_ENTRY_POINT);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_UnsupportedSender.selector, _member));
+    _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
   function test_Unit_Paymaster_Validates7702SenderWithAllowlistedImpl() external {

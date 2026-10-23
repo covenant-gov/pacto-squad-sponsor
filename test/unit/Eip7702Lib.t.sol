@@ -17,6 +17,10 @@ contract Eip7702LibHarness {
   function implementation(bytes memory code) external pure returns (address) {
     return Eip7702Lib.implementation(code);
   }
+
+  function readCode(address account, uint256 length) external view returns (bytes memory) {
+    return Eip7702Lib.readCode(account, length);
+  }
 }
 
 /**
@@ -53,5 +57,14 @@ contract UnitEip7702Lib is Test {
 
   function test_Unit_Eip7702_EmptyCodeIsNotDelegation() external view {
     assertFalse(_lib.isDelegation(''));
+  }
+
+  function test_Unit_Eip7702_ReadCodeCopiesExactBytes() external {
+    address _account = makeAddr('codeAccount');
+    address _impl = makeAddr('impl');
+    bytes memory _code = abi.encodePacked(bytes3(0xef0100), _impl);
+    vm.etch(_account, _code);
+
+    assertEq(_lib.readCode(_account, Eip7702Lib.CODE_LENGTH), _code);
   }
 }

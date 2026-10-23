@@ -97,13 +97,12 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
     _validatePaymaster(_userOp, 1 ether);
   }
 
-  function test_e2e_validatePaymasterUserOp_succeedsForSmartAccountSender() public withPermittedMember {
+  function test_e2e_validatePaymasterUserOp_rejectsSmartAccountSender() public withPermittedMember {
     MockSmartAccount _smartAccount = new MockSmartAccount();
     PackedUserOperation memory _userOp = _buildExtUserOp(address(_smartAccount), _member);
 
-    (, uint256 _validationData) = _validatePaymaster(_userOp, 1 ether);
-
-    assertEq(_validationData, 0);
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_UnsupportedSender.selector, address(_smartAccount)));
+    _validatePaymaster(_userOp, 1 ether);
   }
 
   function test_e2e_validatePaymasterUserOp_succeedsAfterHatWiring() public withWiredExtSquad {

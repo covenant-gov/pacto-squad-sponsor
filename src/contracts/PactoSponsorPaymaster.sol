@@ -19,7 +19,8 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
  * @author Pacto
  * @notice ERC-4337 paymaster that validates squad clone registry, pool slot, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
- *      EIP-7702 senders must bind `sender == member` and delegate to `ALLOWED_7702_IMPLEMENTATION`.
+ *      EOA and EIP-7702 senders must bind `sender == member`; 7702 stubs must delegate to
+ *      `ALLOWED_7702_IMPLEMENTATION`. Other contract senders revert `SS_UnsupportedSender`.
  */
 contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   using UserOperationLib for PackedUserOperation;
@@ -108,20 +109,25 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
 
   /**
    * @notice Resolves eligibility and validates the member account binding.
-   * @param sender `userOp.sender` (EOA, EIP-7702-delegated EOA, or other smart account).
+   * @param sender `userOp.sender` (EOA or EIP-7702-delegated EOA).
    * @param data Parsed paymaster payload.
    * @return eligible True when the member may be sponsored.
    */
   function _isEligible(address sender, PaymasterData memory data) internal view returns (bool eligible) {
     if (data.member == address(0)) return false;
 
-    bytes memory _code = sender.code;
-    if (_code.length == 0) {
+    // `code.length` is EXTCODESIZE only; copy at most 23 bytes for the 7702 stub path.
+    uint256 _len = sender.code.length;
+    if (_len == 0) {
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
-    } else if (Eip7702Lib.isDelegation(_code)) {
+    } else if (_len == Eip7702Lib.CODE_LENGTH) {
+      bytes memory _code = Eip7702Lib.readCode(sender, Eip7702Lib.CODE_LENGTH);
+      if (!Eip7702Lib.isDelegation(_code)) revert SS_UnsupportedSender(sender);
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
       address _impl = Eip7702Lib.implementation(_code);
       if (_impl != ALLOWED_7702_IMPLEMENTATION) revert SS_Invalid7702Implementation(_impl);
+    } else {
+      revert SS_UnsupportedSender(sender);
     }
 
     eligible = ISquadSponsorBase(data.sponsor).isEligible(data.member);
