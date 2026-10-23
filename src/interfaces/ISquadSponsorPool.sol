@@ -40,8 +40,8 @@ interface ISquadSponsorPool is ISquadSponsorCommon {
   function withdraw() external;
 
   /**
-   * @notice Transfer ETH to the paymaster after a sponsored UserOp.
-   * @param amount Wei to deduct from this squad pool.
+   * @notice Deduct pool wei and credit the paymaster's EntryPoint deposit after a sponsored UserOp.
+   * @param amount Wei to deduct from this squad pool and deposit for the wired paymaster.
    */
   function spendGas(uint256 amount) external;
 

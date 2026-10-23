@@ -287,7 +287,7 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
    - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`).
    - Other smart accounts: skip binding (Safe signer mapping **deferred**).
 6. **`sponsor.isEligible(member)`** — Ext address list or hat rules on that clone.
-7. `postOp` (success only) → `pool.spendGas(actualGasCost)` (context encodes the pool).
+7. `postOp` (`opSucceeded` / `opReverted` / `postOpReverted`) → `pool.spendGas(actualGasCost)` credits the paymaster EntryPoint deposit (context encodes the pool).
 
 **Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation; calldata allowlists; per-class gas caps.
 

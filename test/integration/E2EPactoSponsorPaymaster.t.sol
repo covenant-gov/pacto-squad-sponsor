@@ -156,20 +156,28 @@ contract E2EPactoSponsorPaymasterTest is IntegrationBase {
     PackedUserOperation memory _userOp = _buildExtUserOp(_member, _member);
     (bytes memory _context,) = _validatePaymaster(_userOp, 1 ether);
 
-    uint256 _paymasterBefore = address(_paymaster).balance;
+    IEntryPoint _ep = IEntryPoint(_config.entryPoint);
+    uint256 _depositBefore = _ep.balanceOf(address(_paymaster));
     _postOpSucceeded(_context, 1 ether);
 
     assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT - 1 ether);
-    assertEq(address(_paymaster).balance - _paymasterBefore, 1 ether);
+    assertEq(_pool().spendablePoolWei(), _E2E_POOL_DEPOSIT - 1 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ep.balanceOf(address(_paymaster)) - _depositBefore, 1 ether);
   }
 
-  function test_e2e_postOp_skipsSpendOnRevert() public withPermittedMember {
+  function test_e2e_postOp_billsOnRevert() public withPermittedMember {
     PackedUserOperation memory _userOp = _buildExtUserOp(_member, _member);
     (bytes memory _context,) = _validatePaymaster(_userOp, 1 ether);
 
+    IEntryPoint _ep = IEntryPoint(_config.entryPoint);
+    uint256 _depositBefore = _ep.balanceOf(address(_paymaster));
     _postOpReverted(_context, 1 ether);
 
-    assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT);
+    assertEq(address(_pool()).balance, _E2E_POOL_DEPOSIT - 1 ether);
+    assertEq(_pool().spendablePoolWei(), _E2E_POOL_DEPOSIT - 1 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ep.balanceOf(address(_paymaster)) - _depositBefore, 1 ether);
   }
 
   /*///////////////////////////////////////////////////////////////

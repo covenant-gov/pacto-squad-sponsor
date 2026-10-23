@@ -194,7 +194,7 @@ Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or
 4. `pool.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
 5. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), or hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted).
 6. Success: `context = abi.encode(pool)`, `validationData = 0`.
-7. On `postOp` with `opSucceeded` only: `pool.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
+7. On `postOp` for `opSucceeded` and `opReverted` (and `postOpReverted` if surfaced): `pool.spendGas(actualGasCost)` credits the paymaster EntryPoint deposit; pool decreases by exactly `actualGasCost`; `address(paymaster).balance` stays 0.
 
 The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlists, or cap gas classes (deferred).
 

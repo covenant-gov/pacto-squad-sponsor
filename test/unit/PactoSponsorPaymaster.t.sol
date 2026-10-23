@@ -61,13 +61,14 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     vm.prank(_ENTRY_POINT);
     (bytes memory _context,) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
 
-    uint256 _balanceBefore = address(_paymaster).balance;
+    uint256 _epBefore = _ENTRY_POINT.balance;
     vm.prank(_ENTRY_POINT);
     _paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, _context, 1 ether, 0);
 
     assertEq(address(_poolOf(_sponsor)).balance, 4 ether);
     assertEq(_poolOf(_sponsor).spendablePoolWei(), 4 ether);
-    assertEq(address(_paymaster).balance - _balanceBefore, 1 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
   }
 
   function test_Unit_Paymaster_RoutesToHatEligibilityWhenWired() external {
@@ -210,16 +211,44 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     _wired.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
   }
 
-  function test_Unit_Paymaster_PostOpSkipsOnRevert() external {
+  function test_Unit_Paymaster_PostOpBillsOnRevert() external {
     PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
 
     vm.prank(_ENTRY_POINT);
     (bytes memory _context,) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
 
+    uint256 _epBefore = _ENTRY_POINT.balance;
     vm.prank(_ENTRY_POINT);
     _paymaster.postOp(IPaymaster.PostOpMode.opReverted, _context, 1 ether, 0);
 
-    assertEq(address(_poolOf(_sponsor)).balance, 5 ether);
+    assertEq(address(_poolOf(_sponsor)).balance, 4 ether);
+    assertEq(_poolOf(_sponsor).spendablePoolWei(), 4 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
+  }
+
+  function test_Unit_Paymaster_PostOpBillsOnPostOpReverted() external {
+    PackedUserOperation memory _userOp = _buildUserOp(_member, _member);
+
+    vm.prank(_ENTRY_POINT);
+    (bytes memory _context,) = _paymaster.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
+
+    uint256 _epBefore = _ENTRY_POINT.balance;
+    vm.prank(_ENTRY_POINT);
+    _paymaster.postOp(IPaymaster.PostOpMode.postOpReverted, _context, 1 ether, 0);
+
+    assertEq(_poolOf(_sponsor).spendablePoolWei(), 4 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
+  }
+
+  function test_Unit_Paymaster_ReceiveDepositsToEntryPoint() external {
+    uint256 _epBefore = _ENTRY_POINT.balance;
+    vm.deal(address(this), 1 ether);
+    (bool _ok,) = address(_paymaster).call{value: 1 ether}('');
+    assertTrue(_ok);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
   }
 
   function test_Unit_Paymaster_ValidatesWarGameSquadIdWhileParentHatsWired() external {

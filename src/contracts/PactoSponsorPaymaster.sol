@@ -52,17 +52,19 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
                             LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  /// @notice Accepts ETH refunded from squad pools after `spendGas`.
-  receive() external payable {}
+  /// @notice Forwards stray ETH into the EntryPoint deposit so it cannot strand on this contract.
+  receive() external payable {
+    entryPoint.depositTo{value: msg.value}(address(this));
+  }
 
   /*///////////////////////////////////////////////////////////////
                             INTERNAL HELPERS
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc BasePaymaster
-  function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
-    if (mode != PostOpMode.opSucceeded) return;
-
+  /// @dev EntryPoint debits the paymaster deposit for `opSucceeded` and `opReverted`.
+  ///      `postOpReverted` is billed too if an EntryPoint ever surfaces it after a failed first `postOp`.
+  function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256) internal override {
     address _pool = abi.decode(context, (address));
     ISquadSponsorPool(_pool).spendGas(actualGasCost);
   }

@@ -6,6 +6,7 @@ import {ETHTransfer} from 'contracts/utils/ETHTransfer.sol';
 import {ISquadSponsorBase} from 'interfaces/ISquadSponsorBase.sol';
 import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
 import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
+import {IPaymasterDeposit} from 'interfaces/minimal/IPaymasterDeposit.sol';
 
 import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 
@@ -116,7 +117,8 @@ contract SquadSponsorPool is ISquadSponsorPool, Initializable {
     if (amount > _spendablePoolWei) revert SS_InsufficientBalance();
 
     _spendablePoolWei -= amount;
-    ETHTransfer.sendEth(paymaster, amount);
+    // EntryPoint charges `balanceOf(paymaster)`, not `address(paymaster).balance`.
+    IPaymasterDeposit(paymaster).deposit{value: amount}();
 
     emit GasSpent(msg.sender, amount);
   }

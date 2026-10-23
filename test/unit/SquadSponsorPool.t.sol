@@ -73,12 +73,14 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
   }
 
   function test_Unit_Pool_SpendGasOnlyPaymaster() external {
+    uint256 _epBefore = _ENTRY_POINT.balance;
     vm.prank(address(_paymaster));
     _pool.spendGas(1 ether);
 
     assertEq(address(_pool).balance, 9 ether);
     assertEq(_pool.spendablePoolWei(), 9 ether);
-    assertEq(address(_paymaster).balance, 1 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
   }
 
   function test_Unit_Pool_SpendGasRevertsForNonPaymaster() external {
