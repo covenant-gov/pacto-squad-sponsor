@@ -37,7 +37,7 @@ abstract contract DeploymentArtifacts is Script {
   }
 
   /// @notice Prefer mirrored pacto-aa `eip7702-account.json`, then `PACTO_7702_ACCOUNT` env.
-  /// @dev Factory constructor allowlist. Verify still compares the paymaster immutable to the protocol registry slot.
+  /// @dev Factory constructor seeds the paymaster allowlist. Live deploy asserts equality with the registry slot.
   function _resolveAllowed7702Implementation() internal view returns (address allowed7702) {
     allowed7702 = _readPactoSimple7702FromArtifact();
     if (allowed7702 != address(0)) return allowed7702;

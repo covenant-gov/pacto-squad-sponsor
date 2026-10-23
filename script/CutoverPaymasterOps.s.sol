@@ -37,6 +37,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
   function run() external {
     _config = Constants.getConfig(block.chainid);
 
+    // Early fail before broadcast; `_deployFullSystem` repeats the same agreement checks pre-CREATE2.
     address _registry = _protocolRegistryAddress();
     require(_registry != address(0), 'cutover: zero protocol registry');
     address _registryAllowlist = IPactoProtocolRegistry(_registry).allowed7702Implementation();

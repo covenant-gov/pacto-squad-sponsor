@@ -7,6 +7,9 @@ import {SquadSponsorFactory} from 'contracts/SquadSponsorFactory.sol';
 import {Constants} from 'script/Constants.sol';
 import {DeploymentArtifacts} from 'script/DeploymentArtifacts.sol';
 
+import {IPactoProtocolRegistry} from 'interfaces/IPactoProtocolRegistry.sol';
+import {IPactoSimple7702Account} from 'interfaces/IPactoSimple7702Account.sol';
+
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
 
 import {Script} from 'forge-std/Script.sol';
@@ -22,11 +25,16 @@ import {console} from 'forge-std/console.sol';
  *      Paymaster address = first CREATE child of the factory (`nonce` 1).
  *      Factory ctor takes `(entryPoint, allowed7702, allowlistAdmin)`. The allowlist is storage on the
  *      paymaster; `allowlistAdmin` may rotate it without redeploying pools.
+ *      Live public-chain scripts assert artifact/registry/EntryPoint agreement before CREATE2 so a stale
+ *      allowlist cannot consume the salt.
  */
 abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   error SponsorDeploy_ZeroProtocolRegistry();
   error SponsorDeploy_Zero7702Allowlist();
   error SponsorDeploy_ZeroAllowlistAdmin();
+  error SponsorDeploy_Empty7702Code(address allowed7702);
+  error SponsorDeploy_AllowlistMismatch(address artifact, address registry);
+  error SponsorDeploy_7702EntryPointMismatch(address accountEntryPoint, address expectedEntryPoint);
 
   struct DeployAddresses {
     address factory;
@@ -51,6 +59,8 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     address _allowed = _allowed7702Address();
     address _admin = _allowlistAdminAddress();
     address _registry = _protocolRegistryAddress();
+    _assertLiveAllowlistAgreement(entryPoint, _allowed, _registry);
+
     bytes32 _initCodeHash = _factoryInitCodeHash(entryPoint, _allowed, _admin);
     address _predictedFactory = vm.computeCreate2Address(saltFactory, _initCodeHash, deployer);
     address _predictedPaymaster = vm.computeCreateAddress(_predictedFactory, 1);
@@ -65,6 +75,30 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     require(address(_paymaster) == _predictedPaymaster, 'paymaster address mismatch');
 
     _deployAddrs = DeployAddresses({factory: address(_factory), paymaster: address(_paymaster)});
+  }
+
+  /**
+   * @notice On live public-chain forge scripts, require artifact allowlist equals the registry slot,
+   *         has code, and targets this chain's EntryPoint — before CREATE2 consumes the salt.
+   */
+  function _assertLiveAllowlistAgreement(
+    address entryPoint,
+    address allowed7702,
+    address registry
+  ) internal view virtual {
+    if (!_requireNonZeroOnLiveScript()) return;
+
+    if (allowed7702.code.length == 0) revert SponsorDeploy_Empty7702Code(allowed7702);
+
+    address _registryAllowlist = IPactoProtocolRegistry(registry).allowed7702Implementation();
+    if (allowed7702 != _registryAllowlist) {
+      revert SponsorDeploy_AllowlistMismatch(allowed7702, _registryAllowlist);
+    }
+
+    address _accountEp = address(IPactoSimple7702Account(allowed7702).entryPoint());
+    if (_accountEp != entryPoint) {
+      revert SponsorDeploy_7702EntryPointMismatch(_accountEp, entryPoint);
+    }
   }
 
   /// @dev Artifact / `PACTO_7702_ACCOUNT`. Tests override `_resolveAllowed7702ForDeploy` to return `address(0)`.
