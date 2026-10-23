@@ -219,6 +219,13 @@ interface ISquadSponsorCommon {
   error SS_Invalid7702Implementation(address implementation);
 
   /**
+   * @notice `userOp.sender` is a contract that is not an EIP-7702 delegation stub.
+   * @dev Non-7702 smart accounts are rejected until signer → `member` binding is implemented.
+   * @param sender `userOp.sender` for the UserOperation.
+   */
+  error SS_UnsupportedSender(address sender);
+
+  /**
    * @notice Paymaster stake slot is already held by another address.
    * @param staker Current FCFS staker.
    */

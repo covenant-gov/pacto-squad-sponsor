@@ -21,15 +21,15 @@ Sponsorship pays **gas only**. Action permission stays in `pacto-gov` (`PactoAdm
 A UserOp is sponsored when **all** of the following hold:
 
 1. `paymasterAndData` encodes version `1`, the correct `squadId`, the **factory-registered** sponsor clone, and a non-zero `member`.
-2. The clone occupies `pool.defacto()` or `pool.wargame()` (`pool = sponsor.pool()`). Else hard revert `SS_SponsorNotInPoolSlot`.
+2. The clone occupies a pool spend slot. The paymaster reads both with one `pool.spendSlots()` call (`pool = sponsor.pool()`). Else hard revert `SS_SponsorNotInPoolSlot`.
 3. `pool.spendablePoolWei() >= maxCost × 115%` (integer division; see §7). Storage-backed — **not** `address(sponsor).balance` (ERC-7562 bans `BALANCE` during paymaster validation unless the paymaster is staked). Clones forward `spendablePoolWei()` to the pool.
 4. `ISquadSponsorBase(sponsor).isEligible(member)` is true:
    - **Ext (pre-hat wiring):** `member` is on the Ext permit list.
-   - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears captain or crew hat from `NavePirataRegistry.deployment(topHatId)`, or a configured `customEligibleHats` hat.
+   - **Hat path (hat-first clone or Ext after `postInitialize`):** `member` wears the crew or captain hat from `crewAndCaptainHats(topHatId)` (both zero falls through), or a configured `customEligibleHats` hat.
 5. Member binding:
    - **EOA sender** (`userOp.sender.code.length == 0`): `sender == member` (else hard revert `SS_InvalidMemberBinding`).
-   - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s registry-backed `ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`). That view reads `REGISTRY.allowed7702Implementation()` on the username-system `PactoProtocolRegistry` (same instance as the global paymaster). Prefer the live registry / `paymaster.ALLOWED_7702_IMPLEMENTATION()` over a stale address book; pacto-aa’s [`eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) should stay aligned with that slot.
-   - **Other smart-account sender** (Safe, etc.): binding skipped; eligibility is evaluated on `member` only. Safe signer → `member` mapping is **deferred** (not enforced on-chain yet).
+   - **EIP-7702 sender** (23-byte stub `0xef0100 || impl`): `sender == member`, and `impl` must equal the paymaster’s storage `ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`). Deploy seeds that slot from pacto-aa’s [`eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (must match `PactoProtocolRegistry.allowed7702Implementation()`). `ALLOWLIST_ADMIN` may rotate or revoke it without redeploying pools. Validation does not read the registry.
+   - **Other smart-account sender** (Safe, etc.): hard revert `SS_UnsupportedSender`. Safe signer → `member` binding is **deferred**; until then only EOA / EIP-7702 senders are accepted.
 
 Hat wearers with **0 native ETH** are exactly the clients this path serves: gas comes from the squad pool via `spendGas` in `postOp`, not from the roster key balance.
 
@@ -43,11 +43,11 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 |------|--------|--------|
 | **ERC-4337 UserOp + `PactoSponsorPaymaster`** | **Supported** | Required for all sponsored gov writes. |
 | **EOA + EIP-7702 → `PactoSimple7702Account`** then UserOp | **Supported transport for roster EOAs** | Bare EOAs cannot implement `validateUserOp`. App set-codes to the pacto-aa impl in `eip7702-account.json`, then submits a UserOp with `sender == member == roster EVM`. |
-| **ERC-4337 smart account as `sender`** (e.g. Safe + 4337 module) | **Supported** | Put the eligible hat wearer / Ext member in `PaymasterData.member`. Signer→member proof is deferred. |
+| **ERC-4337 smart account as `sender`** (e.g. Safe + 4337 module) | **Rejected** | Reverts `SS_UnsupportedSender` until signer → `member` binding is implemented. |
 | Bare EOA as UserOp `sender` without 7702 / account code | **Not executable** | EntryPoint cannot validate the op. |
 | Legacy `eth_sendTransaction` from roster key | **Not sponsored** | Current app failure mode (`insufficient funds`). |
 
-**Paymaster note on 7702:** After successful 7702 set-code, the sender has designated code `0xef0100 || PactoSimple7702Account`. The paymaster **still** requires `sender == member` and that the delegated implementation matches `ALLOWED_7702_IMPLEMENTATION()` (live read from `PactoProtocolRegistry`). Day-2 account bumps: update the registry allowlist (username `pnpm update:registry:*` / `registry.set(Allowed7702Implementation, …)`) — no squad factory/paymaster redeploy. Other contract wallets (non-7702) keep the deferred Safe-style path.
+**Paymaster note on 7702:** After successful 7702 set-code, the sender has designated code `0xef0100 || PactoSimple7702Account`. The paymaster **still** requires `sender == member` and that the delegated implementation matches `ALLOWED_7702_IMPLEMENTATION()`. `ALLOWLIST_ADMIN` can rotate that slot; existing pools keep the same paymaster. Other contract wallets (non-7702) revert `SS_UnsupportedSender`.
 
 **Client signing contract (PactoSimple7702Account):** owned by [pacto-aa](https://github.com/covenant-gov/pacto-aa); see [CLIENT_CONTRACT.md](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md).
 
@@ -66,7 +66,7 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 ## 3. Addresses (Sepolia)
 
 Source of truth for deployed Sepolia **sponsor** contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).  
-Source of truth for the **EIP-7702 allowlist** (both squad and global paymasters): username-system `PactoProtocolRegistry.allowed7702Implementation()` — Sepolia registry mirrored at [`deployments/11155111/protocol-registry.json`](../deployments/11155111/protocol-registry.json).  
+Source of truth for the **EIP-7702 allowlist** on a deployed squad paymaster: `PactoSponsorPaymaster.ALLOWED_7702_IMPLEMENTATION()` (storage; rotatable by `ALLOWLIST_ADMIN`). Deploy seeds it from [`eip7702-account.json`](../deployments/11155111/eip7702-account.json). Verify checks that value equals username-system `PactoProtocolRegistry.allowed7702Implementation()` in [`protocol-registry.json`](../deployments/11155111/protocol-registry.json). The paymaster does not read the registry at validation time.  
 Source of truth for the **EIP-7702 account** bytecode deploy: [pacto-aa `deployments/11155111/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (mirrored here for forge assertions — do not deploy 7702 from this repo).  
 Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id `11155111`), including `erc4337.accountImplementation` matching the live registry slot.
 
@@ -81,13 +81,13 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 | `NavePirataRegistry` | `0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f` |
 | Hats Protocol v1 | `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137` |
 
-**Deploy order (greenfield):** (1) Deploy / update [pacto-aa](https://github.com/covenant-gov/pacto-aa) 7702 account and set username `PactoProtocolRegistry.allowed7702Implementation`; (2) Mirror `protocol-registry.json` here (or set `PACTO_PROTOCOL_REGISTRY`); (3) `pnpm deploy:sepolia` — factory ctor takes the registry; paymaster reads allowlist live. Do not broadcast with a zero registry; live scripts also expect a non-zero registry allowlist slot.
+**Deploy order (greenfield):** (1) Deploy / update [pacto-aa](https://github.com/covenant-gov/pacto-aa) 7702 account and mirror `eip7702-account.json` here (or set `PACTO_7702_ACCOUNT`); (2) Mirror `protocol-registry.json` so verify can compare allowlists; (3) `pnpm deploy:sepolia` — factory ctor takes EntryPoint and the 7702 address. Do not broadcast with a zero 7702 address. Live scripts also expect a non-zero protocol registry in the artifact.
 
 **Paymaster fund (live top-up):** Greenfield `pnpm deploy:sepolia` does **not** fund EntryPoint deposit or FCFS stake. For an already-deployed factory/paymaster, run `pnpm fund:paymaster:sepolia` (simulate: `pnpm simulate-fund:paymaster:sepolia`): reads `full-system.json`, calls `paymaster.deposit` + `factory.addPaymasterStake`, does **not** redeploy or rewrite the artifact. Same env knobs as cutover: `PAYMASTER_EP_DEPOSIT_WEI`, `PAYMASTER_STAKE_WEI`, `PAYMASTER_UNSTAKE_DELAY_SEC` (defaults 0.1 ETH / 0.1 ETH / 172800). Occupied stake slot reverts `SS_StakeSlotOccupied` unless the broadcaster already holds it (top-up). Prefer this over ad-hoc `cast send` for Core ops.
 
-**7702 allowlist update (no cutover):** After the registry-backed paymaster is live, bumping `PactoSimple7702Account` is: deploy new account in pacto-aa → username `registry.set(Allowed7702Implementation, newImpl)` / `pnpm update:registry:*`. Existing squad clones keep working (same paymaster address). Do **not** cutover factory/paymaster for allowlist-only changes.
+**7702 allowlist update:** The squad paymaster allowlist is immutable. Bumping `PactoSimple7702Account` redeploys the squad factory and paymaster (`pnpm cutover:paymaster:sepolia`) with the new account address. Existing squad clones stay wired to the old paymaster and must be recreated. The username registry slot is a deploy-time check, not a runtime read.
 
-**Paymaster cutover (bytecode / dead factory):** Use `pnpm cutover:paymaster:sepolia` only when shipping new factory/paymaster bytecode (e.g. first registry-backed deploy) or replacing a dead factory. Redeploys factory+paymaster wired to `PACTO_PROTOCOL_REGISTRY` / `protocol-registry.json`, funds deposit + stake, writes `full-system.json`. After cutover, paste the new artifact into `pacto-app`; recreate squad sponsors (old clones stay wired to the dead paymaster). Do **not** use cutover to top up a healthy live paymaster.
+**Paymaster cutover (bytecode / new allowlist / dead factory):** Use `pnpm cutover:paymaster:sepolia` when shipping new factory/paymaster bytecode or a new EIP-7702 allowlist. Redeploys factory+paymaster with the 7702 address from `eip7702-account.json` / `PACTO_7702_ACCOUNT`, requires that address to equal the protocol registry allowlist, funds deposit + stake, writes `full-system.json`. After cutover, paste the new artifact into `pacto-app`; recreate squad sponsors (old clones stay wired to the dead paymaster). Do **not** use cutover to top up a healthy live paymaster.
 
 **Mainnet / Arbitrum:** EntryPoint and Hats are the same canonical addresses; factory/paymaster / 7702 account are not deployed in-repo yet until you broadcast.
 
@@ -189,12 +189,12 @@ Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or
 ### 4.2 Validation order (operators)
 
 1. Parse payload → wrong version **reverts** `SS_InvalidVersion`.
-2. `factory.squads(squadId).sponsor == sponsor` → else **revert** `SS_CloneMismatch`.
-3. `pool = sponsor.pool()`; `pool.defacto() == sponsor || pool.wargame() == sponsor` → else **revert** `SS_SponsorNotInPoolSlot`.
+2. `factory.sponsorOf(squadId) == sponsor` → else **revert** `SS_CloneMismatch`.
+3. `pool = sponsor.pool()`; one `pool.spendSlots()` call; defacto or wargame equals `sponsor` → else **revert** `SS_SponsorNotInPoolSlot`.
 4. `pool.spendablePoolWei() >= maxCost * 11500 / 10000` → else soft-fail `validationData = 1` (`SIG_VALIDATION_FAILED`).
-5. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), or hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted).
+5. Eligibility / binding → soft-fail `1`, hard revert `SS_InvalidMemberBinding` (EOA / 7702 mismatch), hard revert `SS_Invalid7702Implementation` (7702 stub not allowlisted), or hard revert `SS_UnsupportedSender` (non-7702 contract sender).
 6. Success: `context = abi.encode(pool)`, `validationData = 0`.
-7. On `postOp` with `opSucceeded` only: `pool.spendGas(actualGasCost)` (pool decreases by exactly `actualGasCost`).
+7. On `postOp` for `opSucceeded` and `opReverted` (and `postOpReverted` if surfaced): `pool.spendGas(actualGasCost)` credits the paymaster EntryPoint deposit; pool decreases by exactly `actualGasCost`; `address(paymaster).balance` stays 0.
 
 The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlists, or cap gas classes (deferred).
 
@@ -234,9 +234,10 @@ See vector `sample_external_call_bootstrapCrew` in the golden JSON for exact hex
 | Symptom | Kind | Cause | Remediation |
 |---------|------|-------|-------------|
 | `SS_InvalidVersion(version)` | Hard revert | Payload version ≠ `1` | Rebuild `paymasterAndData` with version `1`. |
-| `SS_CloneMismatch(squadId)` | Hard revert | `sponsor` ≠ `factory.squads(squadId).sponsor` | Refresh clone address from factory; never trust a client-supplied sponsor alone. |
+| `SS_CloneMismatch(squadId)` | Hard revert | `sponsor` ≠ `factory.sponsorOf(squadId)` | Refresh clone address from factory; never trust a client-supplied sponsor alone. |
 | `SS_InvalidMemberBinding(sender, member)` | Hard revert | EOA / 7702 `sender ≠ member` | Set both to the roster EVM (eligibility subject). |
-| `SS_Invalid7702Implementation(impl)` | Hard revert | 7702 stub delegates to a non-allowlisted impl | Set-code to `pactoSimple7702Account` from `eip7702-account.json`; redeploy factory if allowlist was wrong. |
+| `SS_Invalid7702Implementation(impl)` | Hard revert | 7702 stub delegates to a non-allowlisted impl | Set-code to `pactoSimple7702Account` from `eip7702-account.json`, or have `ALLOWLIST_ADMIN` rotate the paymaster allowlist. |
+| `SS_UnsupportedSender(sender)` | Hard revert | Contract sender is not a valid EIP-7702 stub | Use EOA + 7702 set-code; Safe/other AA senders are not sponsored yet. |
 | `validationData == 1` (`SIG_VALIDATION_FAILED`) | Soft fail | Ineligible member, `member == 0`, or `spendablePoolWei` &lt; `maxCost × 115%` | Check `isEligible(member)`; fund pool; lower gas / `maxCost`. |
 | Bundler `-32502` / banned opcode | Bundler | Paymaster unstaked or legacy `BALANCE` validation | Stake via factory (≥0.1 ETH, ≥1 day); use redeployed paymaster with `spendablePoolWei`. |
 | `SS_InsufficientBalance` | During `spendGas` | Pool drained between validation and postOp | Rare race; refund/retry after deposit. |
@@ -294,8 +295,8 @@ Gas spend reduces everyone’s withdrawable amount proportionally. Expose Treasu
 |-------|------------------------|
 | 7702 vs 4337 | Both: **4337 UserOp is mandatory**; **7702 is the EOA transport** so roster keys can be UserOp senders. Documented above. |
 | Calldata / gas limits for `bootstrapCrew` | **None on-chain.** Client + bundler sizing only; maintain 115% pool headroom. |
-| Safe signer → `member` | **Deferred** — do not assume paymaster checks Safe owners yet. |
-| 7702 implementation allowlist | **Implemented** — registry-backed `ALLOWED_7702_IMPLEMENTATION()`; EIP-7702 stubs must match `PactoProtocolRegistry.allowed7702Implementation`. |
+| Safe signer → `member` | **Deferred** — non-7702 contract senders currently revert `SS_UnsupportedSender`. |
+| 7702 implementation allowlist | **Implemented** — storage `ALLOWED_7702_IMPLEMENTATION()` rotatable by `ALLOWLIST_ADMIN`; EIP-7702 stubs must match that address. |
 | Calldata allowlists | **Deferred** — app must only build permitted gov module calls. |
 
 ---
@@ -306,6 +307,6 @@ Gas spend reduces everyone’s withdrawable amount proportionally. Expose Treasu
 2. Load `squadId`, `sponsor`, EntryPoint, paymaster from protocol addresses + factory. For `squad-wargame`, use `warGameSquadId(parentSquadId, round)` (not `keccak256(parentId)`).
 3. Encode `paymasterAndData` (TS helper or golden vectors).
 4. Build UserOp `callData` via account `execute` → gov module ABI.
-5. Ensure 7702 delegation (EOA) or Safe 4337 path (smart account).
+5. Ensure 7702 delegation for roster EOAs (non-7702 smart-account senders are rejected).
 6. Submit UserOp; map paymaster errors in §6 to UX copy.
 7. Consume [`fixtures/client-integration/paymasterAndData.vectors.json`](../fixtures/client-integration/paymasterAndData.vectors.json) in Rust/TS unit tests (no mainnet fork required).

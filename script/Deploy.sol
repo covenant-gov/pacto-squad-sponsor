@@ -14,7 +14,7 @@ contract Deploy is SponsorDeploy {
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), Constants.create2Deployer());
     vm.stopBroadcast();
 
-    _assertLiveRegistryAllowlist(_protocolRegistry);
+    _assertLiveAllowed7702(_paymaster.ALLOWED_7702_IMPLEMENTATION());
     _logDeployment();
     _writeFullSystemJson(
       _config.entryPoint,

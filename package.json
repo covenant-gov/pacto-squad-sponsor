@@ -28,9 +28,11 @@
     "simulate-cutover:paymaster:sepolia": "bash -c 'source .env && forge script CutoverPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
     "simulate-deploy:sepolia": "bash -c 'source .env && forge script Deploy --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
     "simulate-fund:paymaster:sepolia": "bash -c 'source .env && forge script FundPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --chain sepolia -vvvvv'",
+    "snapshot:gas": "forge snapshot --match-contract UnitGasHotPaths --snap .gas-snapshot --offline",
     "test": "forge test -vvv",
     "test:bulloak:fix": "bulloak check --fix ./**/*.tree",
     "test:bulloak:scaffold": "bulloak scaffold -wS ./**/*.tree",
+    "test:gas": "forge snapshot --match-contract UnitGasHotPaths --check .gas-snapshot --offline",
     "test:integration": "forge test --match-contract E2E --fork-url mainnet --fork-block-number 22900000 -vvv",
     "test:unit": "forge test --match-contract Unit -vvv",
     "test:unit:deep": "FOUNDRY_FUZZ_RUNS=5000 pnpm test:unit",
@@ -50,7 +52,7 @@
     "@openzeppelin/contracts": "5.1.0",
     "hats-core": "github:Hats-Protocol/hats-protocol",
     "pacto-aa": "github:covenant-gov/pacto-aa#3cc8c9471516b14d511964b5576ea09fb30df105",
-    "pacto-gov": "github:covenant-gov/pacto-gov"
+    "pacto-gov": "github:covenant-gov/pacto-gov#006ae299e41b53e387490bd9f1c998684107ece9"
   },
   "devDependencies": {
     "@commitlint/cli": "19.3.0",

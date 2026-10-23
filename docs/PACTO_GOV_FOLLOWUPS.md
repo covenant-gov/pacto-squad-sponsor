@@ -25,7 +25,7 @@ Do **not** resolve or `postInitialize` the production clone (`keccak256(parentId
 
 1. After `deployNavePirata` (top hat known), call `SquadSponsorFactory.createWarGameSponsor(parentSquadId, topHatId, registry, customHats)` for this round (`factory.warGameSquadId(parentSquadId, round)`). Keep `createWarGameSponsorExt` for Advanced address-list rounds only.
 2. Optional ETH on create deposits into the **parent pool**, not the round clone. The factory sets the pool `wargame` slot (overwrite).
-3. `registry` should be `WarGameRegistry` if it exposes the same `deployment(topHatId)` shape as `NavePirataRegistry`; otherwise pass `address(0)` and captain/crew ids in `customEligibleHats`.
+3. `registry` should be `WarGameRegistry` (same `crewAndCaptainHats(topHatId)` selector as `NavePirataRegistry`); otherwise pass `address(0)` and captain/crew ids in `customEligibleHats`.
 
 Replay = a new `createWarGameSponsor` (new round), not a second `postInitialize` on an old clone. Never hats-wire the parent clone to a throwaway game tree. Never write `_squads[parentSquadId]` from a war-game create.
 

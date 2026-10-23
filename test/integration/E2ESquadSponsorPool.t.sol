@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
+import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
+
 import {IntegrationBase} from 'test/integration/IntegrationBase.sol';
 
 /**
@@ -69,13 +71,16 @@ contract E2ESquadSponsorPoolTest is IntegrationBase {
   function test_e2e_spendGas_succeedsFromPaymaster() public withDeployedExtSquad {
     ISquadSponsorPool pool = _pool();
     uint256 _amount = 1 ether;
-    uint256 _paymasterBefore = address(_paymaster).balance;
+    IEntryPoint _ep = IEntryPoint(_config.entryPoint);
+    uint256 _depositBefore = _ep.balanceOf(address(_paymaster));
 
     vm.prank(address(_paymaster));
     pool.spendGas(_amount);
 
     assertEq(address(pool).balance, _E2E_POOL_DEPOSIT - _amount);
-    assertEq(address(_paymaster).balance - _paymasterBefore, _amount);
+    assertEq(pool.spendablePoolWei(), _E2E_POOL_DEPOSIT - _amount);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ep.balanceOf(address(_paymaster)) - _depositBefore, _amount);
   }
 
   function test_e2e_spendGas_revertsWhenNotPaymaster() public withDeployedExtSquad {

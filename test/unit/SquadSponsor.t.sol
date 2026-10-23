@@ -109,25 +109,8 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
   function test_Unit_Sponsor_RegistryZeroDeploymentUsesCustomHats() external {
     vm.mockCall(
       _REGISTRY,
-      abi.encodeWithSelector(INavePirataRegistry.deployment.selector, _TOP_HAT_ID),
-      abi.encode(
-        INavePirataRegistry.Deployment({
-          safe: address(0),
-          quartermaster: address(0),
-          mutinyModule: address(0),
-          treasuryAuthority: address(0),
-          squadAdminProxy: address(0),
-          topHatId: 0,
-          captainHatId: _CAPTAIN_HAT_ID,
-          crewHatId: _CREW_HAT_ID,
-          squadAdminHatId: 0,
-          mutinyRoleHatId: 0,
-          quartermasterRoleHatId: 0,
-          treasuryAuthorityRoleHatId: 0,
-          deployedAt: 0,
-          deployer: address(0)
-        })
-      )
+      abi.encodeWithSelector(INavePirataRegistry.crewAndCaptainHats.selector, _TOP_HAT_ID),
+      abi.encode(uint256(0), uint256(0))
     );
 
     uint256[] memory _customHats = new uint256[](1);
@@ -161,25 +144,10 @@ contract UnitSquadSponsor is UnitSquadSponsorBase {
   }
 
   function _mockRegistryDeployment() internal {
-    INavePirataRegistry.Deployment memory _deployment = INavePirataRegistry.Deployment({
-      safe: address(0),
-      quartermaster: address(0),
-      mutinyModule: address(0),
-      treasuryAuthority: address(0),
-      squadAdminProxy: address(0),
-      topHatId: _TOP_HAT_ID,
-      captainHatId: _CAPTAIN_HAT_ID,
-      crewHatId: _CREW_HAT_ID,
-      squadAdminHatId: 0,
-      mutinyRoleHatId: 0,
-      quartermasterRoleHatId: 0,
-      treasuryAuthorityRoleHatId: 0,
-      deployedAt: 0,
-      deployer: address(0)
-    });
-
     vm.mockCall(
-      _REGISTRY, abi.encodeWithSelector(INavePirataRegistry.deployment.selector, _TOP_HAT_ID), abi.encode(_deployment)
+      _REGISTRY,
+      abi.encodeWithSelector(INavePirataRegistry.crewAndCaptainHats.selector, _TOP_HAT_ID),
+      abi.encode(_CAPTAIN_HAT_ID, _CREW_HAT_ID)
     );
   }
 }

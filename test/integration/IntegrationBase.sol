@@ -16,8 +16,6 @@ import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
 
 import {Test} from 'forge-std/Test.sol';
 
-import {MockProtocolRegistry} from 'test/unit/helpers/MockProtocolRegistry.sol';
-
 /**
  * @title IntegrationBase
  * @author Pacto
@@ -35,7 +33,6 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
   uint256 internal constant _E2E_POOL_DEPOSIT = 5 ether;
 
   bool internal _integrationForkActive;
-  MockProtocolRegistry internal _mockRegistry;
 
   bytes32 internal _squadId;
   SquadSponsorExt internal _extSponsor;
@@ -76,15 +73,19 @@ abstract contract IntegrationBase is SponsorDeploy, Test {
   function setUp() public virtual {
     _requireEthereumMainnetFork();
     _config = Constants.getConfig(block.chainid);
-    _mockRegistry = new MockProtocolRegistry();
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), address(this));
     _stranger = makeAddr('e2eStranger');
     _fund(_stranger, 1 ether);
   }
 
-  /// @dev Integration tests inject a mock registry (live username registry is not on mainnet fork fixtures).
-  function _resolveProtocolRegistryForDeploy() internal view override returns (address registry) {
-    registry = address(_mockRegistry);
+  /// @dev Integration tests leave the EIP-7702 allowlist unset. Live username registry is not on the fork.
+  function _resolveAllowed7702ForDeploy() internal pure override returns (address allowed7702) {
+    allowed7702 = address(0);
+  }
+
+  /// @dev Test contract acts as allowlist admin for integration fixtures.
+  function _resolveAllowlistAdminForDeploy() internal view override returns (address admin) {
+    admin = address(this);
   }
 
   function _requireEthereumMainnetFork() internal virtual {

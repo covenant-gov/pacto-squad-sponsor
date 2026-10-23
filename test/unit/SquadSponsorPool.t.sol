@@ -2,12 +2,15 @@
 pragma solidity 0.8.30;
 
 import {SquadSponsorExt} from 'contracts/SquadSponsorExt.sol';
+import {SquadSponsorPool} from 'contracts/SquadSponsorPool.sol';
 
 import {ISquadSponsorCommon} from 'interfaces/ISquadSponsorCommon.sol';
 import {ISquadSponsorPool} from 'interfaces/ISquadSponsorPool.sol';
 
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+
 import {UnitSquadSponsorBase} from 'test/unit/UnitSquadSponsorBase.sol';
-import {RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
+import {MockPoolBoundSponsor, RejectEthReceiver} from 'test/unit/helpers/TestHelpers.sol';
 
 /**
  * @title UnitSquadSponsorPool
@@ -70,12 +73,14 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
   }
 
   function test_Unit_Pool_SpendGasOnlyPaymaster() external {
+    uint256 _epBefore = _ENTRY_POINT.balance;
     vm.prank(address(_paymaster));
     _pool.spendGas(1 ether);
 
     assertEq(address(_pool).balance, 9 ether);
     assertEq(_pool.spendablePoolWei(), 9 ether);
-    assertEq(address(_paymaster).balance, 1 ether);
+    assertEq(address(_paymaster).balance, 0);
+    assertEq(_ENTRY_POINT.balance - _epBefore, 1 ether);
   }
 
   function test_Unit_Pool_SpendGasRevertsForNonPaymaster() external {
@@ -233,6 +238,41 @@ contract UnitSquadSponsorPool is UnitSquadSponsorBase {
     address _clone = address(uint160(uint256(keccak256('not-a-sponsor'))));
     vm.expectRevert();
     _pool.setWargame(_clone);
+  }
+
+  function test_Unit_Pool_InitializeZeroParentReverts() external {
+    address _clone = Clones.clone(_factory.poolImplementation());
+
+    vm.expectRevert(abi.encodeWithSelector(ISquadSponsorCommon.SS_ZeroField.selector, 'parentSquadId'));
+    SquadSponsorPool(payable(_clone)).initialize(bytes32(0), address(_paymaster), address(_factory));
+  }
+
+  function test_Unit_Pool_InitializeZeroPaymasterReverts() external {
+    address _clone = Clones.clone(_factory.poolImplementation());
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorPool(payable(_clone)).initialize(_squadId, address(0), address(_factory));
+  }
+
+  function test_Unit_Pool_InitializeZeroFactoryReverts() external {
+    address _clone = Clones.clone(_factory.poolImplementation());
+
+    vm.expectRevert(ISquadSponsorCommon.SS_ZeroAddress.selector);
+    SquadSponsorPool(payable(_clone)).initialize(_squadId, address(_paymaster), address(0));
+  }
+
+  function test_Unit_Pool_SetDefactoPoolMismatchReverts() external {
+    address _otherSponsor = _factory.createSquadSponsorExt(keccak256('other-pool-squad'), address(this));
+
+    vm.expectRevert(ISquadSponsorCommon.SS_PoolMismatch.selector);
+    _pool.setDefacto(_otherSponsor);
+  }
+
+  function test_Unit_Pool_SetWargameUnknownSponsorReverts() external {
+    MockPoolBoundSponsor _mock = new MockPoolBoundSponsor(address(_pool));
+
+    vm.expectRevert(ISquadSponsorCommon.SS_UnknownSponsor.selector);
+    _pool.setWargame(address(_mock));
   }
 
   function test_Unit_Pool_SponsorForwardsSpendablePoolWei() external view {
