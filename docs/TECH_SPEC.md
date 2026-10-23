@@ -120,7 +120,7 @@ flowchart LR
 **v1 sponsors EOA / EIP-7702 senders only.** Paymaster resolves the **beneficiary member** from `paymasterAndData` (see §4.2):
 
 - Empty-code EOA ⇒ `sender == member`.
-- EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == ALLOWED_7702_IMPLEMENTATION()` (storage seeded at paymaster construction; rotatable by `ALLOWLIST_ADMIN`). Deploy passes the pacto-aa account address; verify checks it equals `PactoProtocolRegistry.allowed7702Implementation()` from the deployment artifacts. Validation does not call that registry.
+- EIP-7702 designated code (`0xef0100 || impl`) ⇒ `sender == member` **and** `impl == allowed7702Impl()` (storage seeded at paymaster construction; rotatable by `ALLOWLIST_ADMIN`). Deploy passes the pacto-aa account address; verify checks it equals `PactoProtocolRegistry.allowed7702Implementation()` from the deployment artifacts. Validation does not call that registry.
 - Other smart accounts (e.g. Safe) ⇒ hard revert `SS_UnsupportedSender` until signer → `member` binding is implemented.
 
 **EIP-7702 set-code target:** Owned by [pacto-aa](https://github.com/covenant-gov/pacto-aa) — [`PactoSimple7702Account`](https://github.com/covenant-gov/pacto-aa/blob/dev/src/contracts/PactoSimple7702Account.sol) (storage-free, EntryPoint v0.7 hardcoded, bare ECDSA over `userOpHash`, IERC721 + IERC1155 receivers). Canonical **allowlist** is the username `PactoProtocolRegistry` slot (shared with global paymaster). Canonical **bytecode deploy** artifact: [pacto-aa `deployments/<chainId>/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json); this repo mirrors that file and `protocol-registry.json` for forge scripts. Client contract: [pacto-aa `docs/CLIENT_CONTRACT.md`](https://github.com/covenant-gov/pacto-aa/blob/dev/docs/CLIENT_CONTRACT.md). Do **not** use eth-infinitism Simple7702Account (EP v0.8) or Alchemy SemiModularAccount7702.
@@ -284,14 +284,14 @@ abi.encode(uint8 version, bytes32 squadId, address sponsor, address member)
 4. Check `pool.spendablePoolWei() >= maxCost × 115%` headroom (storage-backed; no `BALANCE` opcode).
 5. **Member binding / 7702 allowlist:**
    - EOA (`code.length == 0`): require `sender == member`.
-   - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == ALLOWED_7702_IMPLEMENTATION()` (else `SS_Invalid7702Implementation`). Uses `extcodesize` plus a 23-byte `extcodecopy` only.
+   - EIP-7702 stub (`0xef0100 || impl`, 23 bytes): require `sender == member` and `impl == allowed7702Impl()` (else `SS_Invalid7702Implementation`). Uses `extcodesize` plus a 23-byte `extcodecopy` only.
    - Other contract senders (including 23-byte non-`0xef0100` code): hard revert `SS_UnsupportedSender`.
 6. **`sponsor.isEligible(member)`** — Ext address list or hat rules on that clone.
 7. `postOp` (`opSucceeded` / `opReverted` / `postOpReverted`) → `pool.spendGas(actualGasCost)` credits the paymaster EntryPoint deposit (context encodes the pool).
 
 **Deferred (spec target, not yet in contract):** Safe 4337 signer → `member` validation (senders rejected until then); calldata allowlists; per-class gas caps.
 
-**Implemented for 7702:** `ALLOWED_7702_IMPLEMENTATION` on `PactoSponsorPaymaster` is a storage slot seeded by the factory constructor `(IEntryPoint, address allowed7702, address allowlistAdmin)`. `address(0)` rejects every EIP-7702 sender. `ALLOWLIST_ADMIN` may call `setAllowed7702Implementation` without redeploying pools.
+**Implemented for 7702:** `allowed7702Impl` on `PactoSponsorPaymaster` is a storage slot seeded by the factory constructor `(IEntryPoint, address allowed7702, address allowlistAdmin)`. `address(0)` rejects every EIP-7702 sender. `ALLOWLIST_ADMIN` may call `setAllowed7702Impl` without redeploying pools.
 ### 4.3 `SquadSponsorExt` + `SquadSponsor` clones (mirrors `SquadAdminExt` + `SquadAdmin`)
 
 **One eligibility clone per registered `squadId`** — ETH lives on the parent `SquadSponsorPool`. `SquadSponsorExt` inherits `SquadSponsor` for hat wiring via `postInitialize` on the **same** clone address.
@@ -495,7 +495,7 @@ Optional: deep link for sponsor to `deposit(squadId)` with suggested amount.
 | Reentrancy from spend | CEI; `spendGas` nonReentrant |
 | Sponsor share inflation | `mulDiv` on deposit; no donation attack without ETH |
 | Unmapped ETH lock | `saviourWithdraw` + explicit `unallocated` accounting |
-| Malicious 7702 implementation | Paymaster allowlists via storage `ALLOWED_7702_IMPLEMENTATION()` (admin-rotatable); app must not sign arbitrary delegation |
+| Malicious 7702 implementation | Paymaster allowlists via storage `allowed7702Impl()` (admin-rotatable); app must not sign arbitrary delegation |
 | Cross-squad drain | `squadId` in paymaster data must match linked `topHatId`; no spend without balance on that id |
 | Upgrade clone swap | Read `upgradeAt` on every validation (cache in indexer off-chain, verify on-chain) |
 

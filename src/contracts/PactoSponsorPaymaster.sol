@@ -20,7 +20,7 @@ import {PackedUserOperation} from '@account-abstraction/interfaces/PackedUserOpe
  * @notice ERC-4337 paymaster that validates squad clone registry, pool slot, spendable pool headroom, and eligibility.
  * @dev `paymasterAndData` layout (after standard 52-byte header): `abi.encode(uint8 version, PaymasterData)`.
  *      EOA and EIP-7702 senders must bind `sender == member`; 7702 stubs must delegate to
- *      `ALLOWED_7702_IMPLEMENTATION`. Other contract senders revert `SS_UnsupportedSender`.
+ *      `allowed7702Impl()`. Other contract senders revert `SS_UnsupportedSender`.
  */
 contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   using UserOperationLib for PackedUserOperation;
@@ -32,7 +32,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   address public immutable ALLOWLIST_ADMIN;
 
   /// @inheritdoc IPactoSponsorPaymaster
-  address public ALLOWED_7702_IMPLEMENTATION;
+  address public allowed7702Impl;
 
   /// @notice Factory used to anti-spoof squad clone addresses.
   ISquadSponsorFactory internal immutable _FACTORY;
@@ -57,7 +57,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
     if (address(factory_) == address(0) || allowlistAdmin == address(0)) revert SS_ZeroAddress();
     _FACTORY = factory_;
     ALLOWLIST_ADMIN = allowlistAdmin;
-    ALLOWED_7702_IMPLEMENTATION = allowed7702;
+    allowed7702Impl = allowed7702;
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -70,11 +70,11 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   }
 
   /// @inheritdoc IPactoSponsorPaymaster
-  function setAllowed7702Implementation(address allowed7702) external {
+  function setAllowed7702Impl(address allowed7702) external {
     if (msg.sender != ALLOWLIST_ADMIN) revert SS_NotAuthorized();
-    address _previous = ALLOWED_7702_IMPLEMENTATION;
-    ALLOWED_7702_IMPLEMENTATION = allowed7702;
-    emit Allowed7702ImplementationSet(_previous, allowed7702);
+    address _previous = allowed7702Impl;
+    allowed7702Impl = allowed7702;
+    emit Allowed7702ImplSet(_previous, allowed7702);
   }
 
   /*///////////////////////////////////////////////////////////////
@@ -144,7 +144,7 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
       if (!Eip7702Lib.isDelegation(_code)) revert SS_UnsupportedSender(sender);
       if (sender != data.member) revert SS_InvalidMemberBinding(sender, data.member);
       address _impl = Eip7702Lib.implementation(_code);
-      if (_impl != ALLOWED_7702_IMPLEMENTATION) revert SS_Invalid7702Implementation(_impl);
+      if (_impl != allowed7702Impl) revert SS_Invalid7702Implementation(_impl);
     } else {
       revert SS_UnsupportedSender(sender);
     }

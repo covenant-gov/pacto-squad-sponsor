@@ -41,7 +41,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     address _registry = _protocolRegistryAddress();
     require(_registry != address(0), 'cutover: zero protocol registry');
     address _registryAllowlist = IPactoProtocolRegistry(_registry).allowed7702Implementation();
-    address _allowed7702 = _resolveAllowed7702Implementation();
+    address _allowed7702 = _resolveAllowed7702Impl();
     require(_allowed7702 != address(0), 'cutover: zero 7702 allowlist');
     require(_allowed7702 == _registryAllowlist, 'cutover: allowlist mismatch');
     require(
@@ -58,7 +58,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     address _broadcaster = _broadcastDeployer();
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), Constants.create2Deployer());
 
-    require(_paymaster.ALLOWED_7702_IMPLEMENTATION() == _allowed7702, 'cutover: allowlist mismatch');
+    require(_paymaster.allowed7702Impl() == _allowed7702, 'cutover: allowlist mismatch');
     require(_paymaster.ALLOWLIST_ADMIN() == _allowlistAdmin, 'cutover: allowlist admin mismatch');
     require(_factory.PAYMASTER() == address(_paymaster), 'cutover: factory PAYMASTER mismatch');
     require(address(_paymaster.entryPoint()) == _config.entryPoint, 'cutover: paymaster EP mismatch');
@@ -75,7 +75,7 @@ contract CutoverPaymasterOps is SponsorDeploy {
     _logDeployment();
     console.log('ProtocolRegistry:', _registry);
     console.log('ALLOWLIST_ADMIN:', _allowlistAdmin);
-    console.log('ALLOWED_7702_IMPLEMENTATION:', _allowed7702);
+    console.log('allowed7702Impl:', _allowed7702);
     console.log('EP deposit (wei):', _depositWei);
     console.log('Stake (wei):', _stakeWei);
     console.log('Unstake delay (sec):', _unstakeDelaySec);

@@ -174,7 +174,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     (, uint256 _validationData) = _wired.validatePaymasterUserOp(_userOp, bytes32(0), 1 ether);
 
     assertEq(_validationData, 0);
-    assertEq(_wired.ALLOWED_7702_IMPLEMENTATION(), address(_accountImpl));
+    assertEq(_wired.allowed7702Impl(), address(_accountImpl));
   }
 
   function test_Unit_Paymaster_Rejects7702WrongImplementation() external {
@@ -320,7 +320,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     address _pool = ISquadSponsorBase(_wiredSponsor).pool();
 
     assertEq(_wired.ALLOWLIST_ADMIN(), address(this));
-    assertEq(_wired.ALLOWED_7702_IMPLEMENTATION(), address(_oldImpl));
+    assertEq(_wired.allowed7702Impl(), address(_oldImpl));
 
     vm.etch(_member, abi.encodePacked(bytes3(0xef0100), address(_oldImpl)));
     SquadSponsorExt(payable(_wiredSponsor)).setPermittedAddress(_member, true);
@@ -331,9 +331,9 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     assertEq(_before, 0);
 
     vm.expectEmit(true, true, false, true, address(_wired));
-    emit IPactoSponsorPaymaster.Allowed7702ImplementationSet(address(_oldImpl), address(_newImpl));
-    _wired.setAllowed7702Implementation(address(_newImpl));
-    assertEq(_wired.ALLOWED_7702_IMPLEMENTATION(), address(_newImpl));
+    emit IPactoSponsorPaymaster.Allowed7702ImplSet(address(_oldImpl), address(_newImpl));
+    _wired.setAllowed7702Impl(address(_newImpl));
+    assertEq(_wired.allowed7702Impl(), address(_newImpl));
 
     vm.prank(_ENTRY_POINT);
     vm.expectRevert(
@@ -353,7 +353,7 @@ contract UnitPactoSponsorPaymaster is UnitSquadSponsorBase {
     address _outsider = makeAddr('allowlistOutsider');
     vm.prank(_outsider);
     vm.expectRevert(ISquadSponsorCommon.SS_NotAuthorized.selector);
-    _paymaster.setAllowed7702Implementation(makeAddr('newImpl'));
+    _paymaster.setAllowed7702Impl(makeAddr('newImpl'));
   }
 
   function _deployAllowlisted(address allowed7702)

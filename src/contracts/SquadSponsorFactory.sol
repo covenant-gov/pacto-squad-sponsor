@@ -160,7 +160,13 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
     if (parentSquadId == bytes32(0)) revert SS_ZeroField('parentSquadId');
 
     uint256 _nonce = ++poolNonce[parentSquadId];
-    bytes32 _salt = keccak256(abi.encode(parentSquadId, _nonce));
+    bytes32 _salt;
+    // Equivalent to `keccak256(abi.encode(parentSquadId, _nonce))` without allocating.
+    assembly ('memory-safe') {
+      mstore(0x00, parentSquadId)
+      mstore(0x20, _nonce)
+      _salt := keccak256(0x00, 0x40)
+    }
     pool = _deployPool(parentSquadId, _salt);
 
     bool _primary = poolOf[parentSquadId] == address(0);
@@ -263,7 +269,15 @@ contract SquadSponsorFactory is ISquadSponsorFactory {
 
   /// @inheritdoc ISquadSponsorFactory
   function warGameSquadId(bytes32 parentSquadId, uint256 round) public pure returns (bytes32 gameSquadId) {
-    gameSquadId = keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round));
+    bytes32 _ns = WAR_GAME_NS;
+    // Equivalent to `keccak256(abi.encode(parentSquadId, WAR_GAME_NS, round))` without allocating.
+    assembly ('memory-safe') {
+      let _ptr := mload(0x40)
+      mstore(_ptr, parentSquadId)
+      mstore(add(_ptr, 0x20), _ns)
+      mstore(add(_ptr, 0x40), round)
+      gameSquadId := keccak256(_ptr, 0x60)
+    }
   }
 
   /*///////////////////////////////////////////////////////////////
