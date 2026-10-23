@@ -1,2 +1,4 @@
 UnitGasHotPaths:test_Gas_CrewAndCaptainHatsEligibility() (gas: 5508)
-UnitGasHotPaths:test_Gas_PaymasterValidation() (gas: 16639)
+UnitGasHotPaths:test_Gas_PaymasterPostOp() (gas: 22477)
+UnitGasHotPaths:test_Gas_PaymasterValidation() (gas: 16489)
+UnitGasHotPaths:test_Gas_PaymasterValidation7702() (gas: 14612)

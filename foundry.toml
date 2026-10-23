@@ -28,6 +28,11 @@ out = 'out-via-ir'
 via_ir = true
 out = 'out-via-ir'
 
+# Coverage without via-ir avoids Foundry LCOV branch inconsistencies (e.g. SquadSponsorBase).
+# Default/test profiles keep via_ir so gas snapshots match deployment bytecode.
+[profile.coverage]
+via_ir = false
+
 [profile.docs]
 src = 'src/interfaces/'
 

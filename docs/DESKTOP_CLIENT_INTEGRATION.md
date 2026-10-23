@@ -1,10 +1,10 @@
 # Desktop client integration — ERC-4337 sponsored squad governance
 
-**Audience:** `pacto-app` (and any client) routing hat-gated governance writes through `PactoSponsorPaymaster`.  
-**Companion app issue:** [covenant-gov/pacto-app#87](https://github.com/covenant-gov/pacto-app/issues/87)  
-**Spec issue:** [covenant-gov/pacto-squad-sponsor#5](https://github.com/covenant-gov/pacto-squad-sponsor/issues/5)  
-**Canonical product/security spec:** [`TECH_SPEC.md`](./TECH_SPEC.md)  
-**Golden vectors:** [`fixtures/client-integration/paymasterAndData.vectors.json`](../fixtures/client-integration/paymasterAndData.vectors.json)  
+**Audience:** `pacto-app` (and any client) routing hat-gated governance writes through `PactoSponsorPaymaster`.
+**Companion app issue:** [covenant-gov/pacto-app#87](https://github.com/covenant-gov/pacto-app/issues/87)
+**Spec issue:** [covenant-gov/pacto-squad-sponsor#5](https://github.com/covenant-gov/pacto-squad-sponsor/issues/5)
+**Canonical product/security spec:** [`TECH_SPEC.md`](./TECH_SPEC.md)
+**Golden vectors:** [`fixtures/client-integration/paymasterAndData.vectors.json`](../fixtures/client-integration/paymasterAndData.vectors.json)
 **TS encoder:** [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts)
 
 ---
@@ -65,9 +65,9 @@ Hat wearers with **0 native ETH** are exactly the clients this path serves: gas 
 
 ## 3. Addresses (Sepolia)
 
-Source of truth for deployed Sepolia **sponsor** contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).  
-Source of truth for the **EIP-7702 allowlist** on a deployed squad paymaster: `PactoSponsorPaymaster.ALLOWED_7702_IMPLEMENTATION()` (storage; rotatable by `ALLOWLIST_ADMIN`). Deploy seeds it from [`eip7702-account.json`](../deployments/11155111/eip7702-account.json). Verify checks that value equals username-system `PactoProtocolRegistry.allowed7702Implementation()` in [`protocol-registry.json`](../deployments/11155111/protocol-registry.json). The paymaster does not read the registry at validation time.  
-Source of truth for the **EIP-7702 account** bytecode deploy: [pacto-aa `deployments/11155111/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (mirrored here for forge assertions — do not deploy 7702 from this repo).  
+Source of truth for deployed Sepolia **sponsor** contracts: [`deployments/11155111/full-system.json`](../deployments/11155111/full-system.json).
+Source of truth for the **EIP-7702 allowlist** on a deployed squad paymaster: `PactoSponsorPaymaster.ALLOWED_7702_IMPLEMENTATION()` (storage; rotatable by `ALLOWLIST_ADMIN`). Deploy seeds it from [`eip7702-account.json`](../deployments/11155111/eip7702-account.json). Verify checks that value equals username-system `PactoProtocolRegistry.allowed7702Implementation()` in [`protocol-registry.json`](../deployments/11155111/protocol-registry.json). The paymaster does not read the registry at validation time.
+Source of truth for the **EIP-7702 account** bytecode deploy: [pacto-aa `deployments/11155111/eip7702-account.json`](https://github.com/covenant-gov/pacto-aa/blob/dev/deployments/11155111/eip7702-account.json) (mirrored here for forge assertions — do not deploy 7702 from this repo).
 Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id `11155111`), including `erc4337.accountImplementation` matching the live registry slot.
 
 | Role | Address |
@@ -182,7 +182,7 @@ bytes memory header = abi.encodePacked(paymaster, uint128(verificationGasLimit),
 bytes memory paymasterAndData = bytes.concat(header, payload);
 ```
 
-Suggested gas limits for the header (not on-chain policy — sizing only): `verificationGasLimit = 100_000`, `postOpGasLimit = 50_000` (matches integration tests).
+Suggested gas limits for the header (not on-chain policy — sizing only): `verificationGasLimit = 100_000`, `postOpGasLimit = 50_000` (matches integration tests). Hermetic `postOp` (including EntryPoint `depositTo`) measures ~22k gas in `.gas-snapshot`; keep the 50k header budget for bundler headroom.
 
 Use [`client/encodePaymasterAndData.ts`](../client/encodePaymasterAndData.ts) or the golden JSON vectors for off-chain encoding without a fork.
 
@@ -220,7 +220,7 @@ The paymaster does **not** inspect `userOp.callData`, enforce calldata allowlist
 
 ### Sample calldata (fixtures)
 
-Selector `bootstrapCrew(address[])` = `0xc2af273a`.  
+Selector `bootstrapCrew(address[])` = `0xc2af273a`.
 Account wrapper `execute(address,uint256,bytes)` = `0xb61d27f6`.
 
 See vector `sample_external_call_bootstrapCrew` in the golden JSON for exact hex with placeholder addresses.
