@@ -14,6 +14,9 @@ evm_version = 'prague'
 libs = ['node_modules']
 optimizer_runs = 10_000
 via_ir = true
+# hash file contents (not path strings) so nested factory CBOR is Etherscan-replayable.
+bytecode_hash = 'ipfs'
+use_literal_content = true
 fs_permissions = [{ access = 'read-write', path = './deployments' }]
 
 [profile.verify]

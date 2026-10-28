@@ -83,7 +83,6 @@ contract CutoverPaymasterOps is SponsorDeploy {
 
     _writeFullSystemJson(
       _config.entryPoint,
-      _config.navePirataRegistry,
       _registry,
       address(_factory),
       address(_paymaster),

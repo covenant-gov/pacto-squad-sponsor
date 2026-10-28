@@ -635,11 +635,12 @@ Canonical source: **`script/Constants.sol`** (`Constants.getConfig(chainId)`). D
 | Private (`.env` only) | Public (`script/Constants.sol`) |
 |------------------------|----------------------------------|
 | `MAINNET_RPC`, `SEPOLIA_RPC`, `ARBITRUM_RPC` | `entryPoint`, `HATS_PROTOCOL_V1`, `DEFAULT_MAINNET_FORK_BLOCK` |
-| `ETHERSCAN_API_KEY`, `ALCHEMY_API_KEY` | `navePirataRegistry`, `safe4337Module` |
-| `*_DEPLOYER_NAME` (keystore labels) | `squadSponsorFactory`, `paymaster` after deploy |
+| `ETHERSCAN_API_KEY`, `ALCHEMY_API_KEY` | `safe4337Module` |
+| `*_DEPLOYER_NAME` (keystore labels) | `squadSponsorFactory`, `paymaster` after deploy (documentation pins) |
+| `PACTO_NAVE_PIRATA_REGISTRY` (optional; gov-owned) | `navePirataRegistry` pin only — Deploy does not persist `Constants` into `full-system.json` |
 | | `mainnetForkBlock` for integration tests |
 
-After deploy, update **`Constants.sol`** (and optionally `deployments/<chainId>/sponsor.json` for app consumption).
+After deploy, update **`Constants.sol`** factory/paymaster pins (and optionally `deployments/<chainId>/sponsor.json` for app consumption). Canonical `navePirataRegistry` is pacto-gov / conductor `stack.json`; copy it into `full-system.json` only from `protocol-registry.json` / `PACTO_NAVE_PIRATA_REGISTRY`.
 
 #### `.env.example` (Phase 0)
 

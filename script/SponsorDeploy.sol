@@ -172,7 +172,10 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     console.log('Pool implementation:', _factory.poolImplementation());
     console.log('Factory PAYMASTER:', _factory.PAYMASTER());
     console.log('Hats:', _factory.hats());
-    console.log('NavePirataRegistry:', _config.navePirataRegistry);
+    address navePirataRegistry = _resolveNavePirataRegistry();
+    if (navePirataRegistry != address(0)) {
+      console.log('NavePirataRegistry:', navePirataRegistry);
+    }
   }
 
   function _broadcastDeployer() internal returns (address deployer) {

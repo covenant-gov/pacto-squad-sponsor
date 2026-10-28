@@ -21,15 +21,18 @@ address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0
 /// scripts reject `address(0)` for both). `protocol-registry.json` is still recorded so verify can
 /// check the seeded allowlist equals `allowed7702Impl()`.
 /// Hats is not a constructor arg — it is baked into sponsor bytecode via `SquadSponsorConstants.HATS_ADDRESS`.
+/// `navePirataRegistry` is a pacto-gov pin for humans/docs. Deploy must not write it into
+/// `full-system.json`; copy gov's registry from `protocol-registry.json` / `PACTO_NAVE_PIRATA_REGISTRY`
+/// when present, otherwise omit the key.
 library Constants {
   /**
    * @notice Chain-level deployment configuration.
    * @param chainId The supported network's chain ID.
    * @param entryPoint ERC-4337 EntryPoint v0.7 wired into `PactoSponsorPaymaster`.
-   * @param navePirataRegistry Pacto-gov registry for hat eligibility lookups (integration / app consumption).
+   * @param navePirataRegistry Pacto-gov registry pin (not a factory constructor arg; Deploy does not persist this).
    * @param safe4337Module Safe 4337 module address for Path A UserOps (integration / app consumption).
-   * @param squadSponsorFactory CREATE2-deployed `SquadSponsorFactory` — set after deploy.
-   * @param paymaster CREATE2-deployed `PactoSponsorPaymaster` — set after deploy.
+   * @param squadSponsorFactory CREATE2-deployed `SquadSponsorFactory` — documentation pin after deploy.
+   * @param paymaster CREATE2-deployed `PactoSponsorPaymaster` — documentation pin after deploy.
    * @param mainnetForkBlock Mainnet block pin for integration fork tests (`IntegrationBase`).
    */
   struct ChainConfig {
@@ -76,10 +79,10 @@ library Constants {
     return ChainConfig({
       chainId: 11_155_111,
       entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
-      navePirataRegistry: 0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f, // pacto-gov Sepolia
+      navePirataRegistry: 0xEDe67E7f75cD12F3517AaFD15D711956F3d95850, // pacto-gov / stack.json (not a deploy output)
       safe4337Module: address(0),
-      squadSponsorFactory: 0x032e84cff3b32c221f8F93e4839Fa5715638ae08, // deployments/11155111/full-system.json
-      paymaster: 0xF7f557a9443671EB0f5a3F1b233Ac44A9eDa24B8, // deployments/11155111/full-system.json
+      squadSponsorFactory: 0x280755769367DDD108020eEF353A6dF0f8355f36, // stack.json Oct 2026 cutover
+      paymaster: 0x86480317e27CF7019E966b098AF10588e021DA8f, // stack.json pactoSponsorPaymaster
       mainnetForkBlock: 0
     });
   }

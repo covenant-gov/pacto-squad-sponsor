@@ -18,7 +18,6 @@ contract Deploy is SponsorDeploy {
     _logDeployment();
     _writeFullSystemJson(
       _config.entryPoint,
-      _config.navePirataRegistry,
       _protocolRegistry,
       address(_factory),
       address(_paymaster),
