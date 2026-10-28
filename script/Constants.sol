@@ -79,10 +79,10 @@ library Constants {
     return ChainConfig({
       chainId: 11_155_111,
       entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
-      navePirataRegistry: 0xEDe67E7f75cD12F3517AaFD15D711956F3d95850, // pacto-gov / stack.json (not a deploy output)
+      navePirataRegistry: 0x36e32e1f2769B0CF873bFaf5C1BFb8d4e087DC00, // pacto-gov / greenfield stack.json (not a deploy output)
       safe4337Module: address(0),
-      squadSponsorFactory: 0x280755769367DDD108020eEF353A6dF0f8355f36, // stack.json Oct 2026 cutover
-      paymaster: 0x86480317e27CF7019E966b098AF10588e021DA8f, // stack.json pactoSponsorPaymaster
+      squadSponsorFactory: 0xEd1dAd3d42159CA504e86151beAfBce6c86f86ae, // greenfield stack.json
+      paymaster: 0x734Cd82B6732f2067De52A3B9F6a5f86843ee424, // greenfield stack.json pactoSponsorPaymaster
       mainnetForkBlock: 0
     });
   }

@@ -125,10 +125,10 @@ contract FundPaymasterOps is DeploymentArtifacts {
     console2.log('SquadSponsorFactory:', address(factory));
     console2.log('PactoSponsorPaymaster:', address(paymaster));
     console2.log('EntryPoint:', address(ep));
-    console2.log('EP deposit added (wei):', _depositAdded);
-    console2.log('EP deposit total (wei):', ep.balanceOf(address(paymaster)));
-    console2.log('Stake added (wei):', _stakeAdded);
-    console2.log('Unstake delay (sec):', unstakeDelaySec);
+    console2.log(string.concat('EP deposit added (wei): ', vm.toString(_depositAdded)));
+    console2.log(string.concat('EP deposit total (wei): ', vm.toString(ep.balanceOf(address(paymaster)))));
+    console2.log(string.concat('Stake added (wei): ', vm.toString(_stakeAdded)));
+    console2.log(string.concat('Unstake delay (sec): ', vm.toString(unstakeDelaySec)));
     console2.log('paymasterStaker:', factory.paymasterStaker());
   }
 
