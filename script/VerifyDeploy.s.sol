@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {Script} from 'forge-std/Script.sol';
 import {stdJson} from 'forge-std/StdJson.sol';
+import {Vm} from 'forge-std/Vm.sol';
 import {console} from 'forge-std/console.sol';
 
 import {IEntryPoint} from '@account-abstraction/interfaces/IEntryPoint.sol';
@@ -16,6 +17,7 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  * @notice Etherscan verification for sponsor bootstrap contracts from `deployments/<chainId>/full-system.json`.
  * @dev Requires `FOUNDRY_PROFILE=verify` (`ffi = true` in `[profile.verify]` only). Run after `Deploy`.
  *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`, `poolImplementation`).
+ *      `vm.tryFfi` so a factory reject does not abort paymaster / impls.
  *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
  *      Asserts `ALLOWED_7702_IMPLEMENTATION()` equals `registry.allowed7702Implementation()` from the
  *      deployment artifacts (seeded equal at deploy; admin may rotate later). Validation does not call the registry.
@@ -118,7 +120,18 @@ contract VerifyDeploy is Script {
     _inputs[9] = vm.toString(constructorArgs);
     _inputs[10] = '--skip-is-verified-check';
     _inputs[11] = '--watch';
-    console.log(string(vm.ffi(_inputs)));
+    Vm.FfiResult memory _result = vm.tryFfi(_inputs);
+    if (_result.exitCode != 0) {
+      console.log('WARN: verify rejected', contractId);
+      if (_result.stderr.length != 0) {
+        console.log(string(_result.stderr));
+      }
+      if (_result.stdout.length != 0) {
+        console.log(string(_result.stdout));
+      }
+      return;
+    }
+    console.log(string(_result.stdout));
   }
 
   function _chainSlug() internal view returns (string memory) {
