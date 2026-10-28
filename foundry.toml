@@ -17,7 +17,10 @@ via_ir = true
 # hash file contents (not path strings) so nested factory CBOR is Etherscan-replayable.
 bytecode_hash = 'ipfs'
 use_literal_content = true
-fs_permissions = [{ access = 'read-write', path = './deployments' }]
+fs_permissions = [
+  { access = 'read-write', path = './deployments' },
+  { access = 'read-write', path = './simulations' },
+]
 
 [profile.verify]
 ffi = true

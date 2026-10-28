@@ -16,11 +16,13 @@ import {console} from 'forge-std/console.sol';
  * @author Pacto
  * @notice One-shot live-chain cutover: redeploy factory+paymaster with a seeded EIP-7702 allowlist,
  *         fund EntryPoint deposit + FCFS stake, write `full-system.json`.
- * @dev Does **not** redeploy `PactoSimple7702Account` (owned by pacto-aa). The factory constructor
- *      receives the account from `eip7702-account.json` / `PACTO_7702_ACCOUNT` and `ALLOWLIST_ADMIN`.
- *      The account must equal `PactoProtocolRegistry.allowed7702Implementation()` from
- *      `protocol-registry.json`. After deploy, `ALLOWLIST_ADMIN` can rotate the allowlist without
- *      recreating pools (the paymaster does not read the registry at validation time).
+ * @dev Dry-run writes `simulations/<chainId>/full-system.json`; broadcast/resume write
+ *      `deployments/<chainId>/full-system.json`. Does **not** redeploy `PactoSimple7702Account`
+ *      (owned by pacto-aa). The factory constructor receives the account from `eip7702-account.json`
+ *      / `PACTO_7702_ACCOUNT` and `ALLOWLIST_ADMIN`. The account must equal
+ *      `PactoProtocolRegistry.allowed7702Implementation()` from `protocol-registry.json`. After
+ *      deploy, `ALLOWLIST_ADMIN` can rotate the allowlist without recreating pools (the paymaster
+ *      does not read the registry at validation time).
  *
  *      Env (optional funding knobs):
  *      - `ALLOWLIST_ADMIN` (required on live public chains)

@@ -640,7 +640,7 @@ Canonical source: **`script/Constants.sol`** (`Constants.getConfig(chainId)`). D
 | `PACTO_NAVE_PIRATA_REGISTRY` (optional; gov-owned) | `navePirataRegistry` pin only — Deploy does not persist `Constants` into `full-system.json` |
 | | `mainnetForkBlock` for integration tests |
 
-After deploy, update **`Constants.sol`** factory/paymaster pins (and optionally `deployments/<chainId>/sponsor.json` for app consumption). Canonical `navePirataRegistry` is pacto-gov / conductor `stack.json`; copy it into `full-system.json` only from `protocol-registry.json` / `PACTO_NAVE_PIRATA_REGISTRY`.
+After deploy, update **`Constants.sol`** factory/paymaster pins (and optionally `deployments/<chainId>/sponsor.json` for app consumption). Canonical `navePirataRegistry` is pacto-gov / conductor `stack.json`; copy it into `full-system.json` only from `protocol-registry.json` / `PACTO_NAVE_PIRATA_REGISTRY`. Artifacts: `deployments/<chainId>/full-system.json` (broadcast / resume); dry-run writes `simulations/<chainId>/`.
 
 #### `.env.example` (Phase 0)
 

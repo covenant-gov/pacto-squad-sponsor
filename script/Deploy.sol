@@ -5,6 +5,7 @@ import {Constants} from 'script/Constants.sol';
 import {SponsorDeploy} from 'script/SponsorDeploy.sol';
 
 /// @notice Chain-level deploy: SquadSponsorFactory + PactoSponsorPaymaster via CREATE2.
+/// @dev Writes `deployments/<chainId>/full-system.json` on broadcast/resume, or `simulations/<chainId>/` on dry-run.
 contract Deploy is SponsorDeploy {
   function run() external {
     _config = Constants.getConfig(block.chainid);
