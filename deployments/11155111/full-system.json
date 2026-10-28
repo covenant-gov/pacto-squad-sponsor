@@ -3,7 +3,6 @@
   "deployer": "0x897Aae53c0255b02EFF66bF2D623b19FA87e2d69",
   "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
   "extImplementation": "0x2EF9B3eAEA2d42173e843c9aC082449049D3C26B",
-  "navePirataRegistry": "0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f",
   "pactoSponsorPaymaster": "0xD84337C18dB089DF78c69Ea0df619bD48EEBBcC3",
   "poolImplementation": "0xEaa7E00Cd1DEDB8E1d314475D8d5fAc4f1D134aE",
   "protocolRegistry": "0xAF61198bf3b9D8d49FA82888121c187720D6Cfe8",

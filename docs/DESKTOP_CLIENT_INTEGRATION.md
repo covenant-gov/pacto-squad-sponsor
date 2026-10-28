@@ -78,7 +78,7 @@ Cross-link these into `pacto-app` `pacto-protocol-addresses.json` (same chain id
 | `SquadSponsorFactory` | see `full-system.json` |
 | `PactoSponsorPaymaster` | see `full-system.json` |
 | Sponsor / Ext implementations | see `full-system.json` |
-| `NavePirataRegistry` | `0x45127C1c92741C0dA38e1A73fbb97a8a2C46770f` |
+| `NavePirataRegistry` | `0xEDe67E7f75cD12F3517AaFD15D711956F3d95850` (pacto-gov / stack.json — not this package's deploy output) |
 | Hats Protocol v1 | `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137` |
 
 **Deploy order (greenfield):** (1) Deploy / update [pacto-aa](https://github.com/covenant-gov/pacto-aa) 7702 account and mirror `eip7702-account.json` here (or set `PACTO_7702_ACCOUNT`); (2) Mirror `protocol-registry.json` so verify can compare allowlists; (3) `pnpm deploy:sepolia` — factory ctor takes EntryPoint and the 7702 address. Do not broadcast with a zero 7702 address. Live scripts also expect a non-zero protocol registry in the artifact.
