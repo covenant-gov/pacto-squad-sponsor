@@ -61,6 +61,28 @@ abstract contract DeploymentArtifacts is Script {
     registry = vm.envOr('PACTO_PROTOCOL_REGISTRY', address(0));
   }
 
+  /// @notice Optional gov `navePirataRegistry` from mirrored `protocol-registry.json` when present.
+  /// @dev Canonical address lives in pacto-gov `full-system.json` / `infra.json`. This package does not deploy it.
+  function _readNavePirataRegistryFromArtifact() internal view returns (address registry) {
+    try vm.readFile(_deploymentJsonPath('protocol-registry.json')) returns (string memory json) {
+      try vm.parseJsonAddress(json, '.navePirataRegistry') returns (address fromJson) {
+        registry = fromJson;
+      } catch {
+        registry = address(0);
+      }
+    } catch {
+      registry = address(0);
+    }
+  }
+
+  /// @notice Prefer optional `protocol-registry.json` `.navePirataRegistry`, then `PACTO_NAVE_PIRATA_REGISTRY`.
+  /// @dev Never fall back to `Constants.sol`. Zero means omit the key from `full-system.json`.
+  function _resolveNavePirataRegistry() internal view returns (address registry) {
+    registry = _readNavePirataRegistryFromArtifact();
+    if (registry != address(0)) return registry;
+    registry = vm.envOr('PACTO_NAVE_PIRATA_REGISTRY', address(0));
+  }
+
   function _writeDeploymentJson(string memory json, string memory filename) internal {
     vm.createDir(string.concat('deployments/', vm.toString(block.chainid)), true);
     vm.writeJson(json, _deploymentJsonPath(filename));
@@ -68,7 +90,6 @@ abstract contract DeploymentArtifacts is Script {
 
   function _writeFullSystemJson(
     address entryPoint,
-    address navePirataRegistry,
     address protocolRegistry,
     address squadSponsorFactory,
     address pactoSponsorPaymaster,
@@ -81,7 +102,10 @@ abstract contract DeploymentArtifacts is Script {
     string memory k = 'sponsor_full_system';
     vm.serializeUint(k, 'chainId', block.chainid);
     vm.serializeAddress(k, 'entryPoint', entryPoint);
-    vm.serializeAddress(k, 'navePirataRegistry', navePirataRegistry);
+    address navePirataRegistry = _resolveNavePirataRegistry();
+    if (navePirataRegistry != address(0)) {
+      vm.serializeAddress(k, 'navePirataRegistry', navePirataRegistry);
+    }
     vm.serializeAddress(k, 'protocolRegistry', protocolRegistry);
     vm.serializeAddress(k, 'squadSponsorFactory', squadSponsorFactory);
     vm.serializeAddress(k, 'pactoSponsorPaymaster', pactoSponsorPaymaster);
