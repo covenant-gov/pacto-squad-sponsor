@@ -19,7 +19,7 @@ address constant CREATE2_DEFAULT_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0
 /// in a storage slot; `ALLOWLIST_ADMIN` may rotate it. Resolve the seed from mirrored
 /// `eip7702-account.json` or `PACTO_7702_ACCOUNT`, and the admin from `ALLOWLIST_ADMIN` (live-chain
 /// scripts reject `address(0)` for both). `protocol-registry.json` is still recorded so verify can
-/// check the seeded allowlist equals `allowed7702Implementation()`.
+/// check the seeded allowlist equals `allowed7702Impl()`.
 /// Hats is not a constructor arg — it is baked into sponsor bytecode via `SquadSponsorConstants.HATS_ADDRESS`.
 /// `navePirataRegistry` is a pacto-gov pin for humans/docs. Deploy must not write it into
 /// `full-system.json`; copy gov's registry from `protocol-registry.json` / `PACTO_NAVE_PIRATA_REGISTRY`

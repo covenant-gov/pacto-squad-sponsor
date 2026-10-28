@@ -19,7 +19,7 @@ import {ISquadSponsorFactory} from 'interfaces/ISquadSponsorFactory.sol';
  *      Verifies factory, paymaster, and EIP-1167 master copies (`sponsorImplementation`, `extImplementation`, `poolImplementation`).
  *      `vm.tryFfi` so a factory reject does not abort paymaster / impls.
  *      Once master copies are verified, app-created clones (EIP-1167) are recognized by Etherscan automatically.
- *      Asserts `ALLOWED_7702_IMPLEMENTATION()` equals `registry.allowed7702Implementation()` from the
+ *      Asserts `allowed7702Impl()` equals `registry.allowed7702Implementation()` from the
  *      deployment artifacts (seeded equal at deploy; admin may rotate later). Validation does not call the registry.
  */
 contract VerifyDeploy is Script {
@@ -65,7 +65,7 @@ contract VerifyDeploy is Script {
   }
 
   function _assertAllowlist(address paymaster, address expected7702) internal view {
-    address _onChainAllowlist = IPactoSponsorPaymaster(paymaster).ALLOWED_7702_IMPLEMENTATION();
+    address _onChainAllowlist = IPactoSponsorPaymaster(paymaster).allowed7702Impl();
     if (_onChainAllowlist != expected7702) {
       revert VerifyDeploy_AllowlistMismatch(_onChainAllowlist, expected7702);
     }
@@ -77,7 +77,7 @@ contract VerifyDeploy is Script {
       console.log('  artifact:', _artifact7702);
     }
 
-    console.log('ALLOWED_7702_IMPLEMENTATION ok:', _onChainAllowlist);
+    console.log('allowed7702Impl ok:', _onChainAllowlist);
   }
 
   /// @dev Prefer `full-system.json` `.protocolRegistry`, then `protocol-registry.json`, then env.

@@ -24,6 +24,9 @@ ai-docs/
 # Keep the latest deployment only
 broadcast/*/*/*
 
+# Dry-run simulation artifacts (local only)
+simulations/*/*
+
 # Out dir
 out
 crytic-export

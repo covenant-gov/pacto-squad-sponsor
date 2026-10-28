@@ -13,7 +13,7 @@
     "build": "forge build",
     "build:optimized": "FOUNDRY_PROFILE=optimized forge build",
     "commit": "pnpm lint:fix && pnpm lint:natspec && pnpm test:unit && pnpm test:integration",
-    "coverage": "forge coverage --ir-minimum --report summary --report lcov --match-path 'test/unit/*' --no-match-coverage 'script/|test/integration/'",
+    "coverage": "FOUNDRY_PROFILE=coverage forge coverage --report summary --report lcov --match-path 'test/unit/*' --no-match-coverage 'script/|test/integration/'",
     "cutover:paymaster:sepolia": "bash -c 'source .env && forge script CutoverPaymasterOps --rpc-url sepolia --account $SEPOLIA_DEPLOYER_NAME --broadcast --chain sepolia -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url sepolia --chain sepolia -vvvv'",
     "deploy:arbitrum": "bash -c 'source .env && forge script Deploy --rpc-url arbitrum --account $ARBITRUM_DEPLOYER_NAME --broadcast --chain arbitrum -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url arbitrum --chain arbitrum -vvvv'",
     "deploy:mainnet": "bash -c 'source .env && forge script Deploy --rpc-url mainnet --account $MAINNET_DEPLOYER_NAME --broadcast --chain mainnet -vvvvv && FOUNDRY_PROFILE=verify forge script VerifyDeploy --rpc-url mainnet --chain mainnet -vvvv'",

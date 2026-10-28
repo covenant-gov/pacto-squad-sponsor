@@ -5,6 +5,7 @@ import {Constants} from 'script/Constants.sol';
 import {SponsorDeploy} from 'script/SponsorDeploy.sol';
 
 /// @notice Chain-level deploy: SquadSponsorFactory + PactoSponsorPaymaster via CREATE2.
+/// @dev Writes `deployments/<chainId>/full-system.json` on broadcast/resume, or `simulations/<chainId>/` on dry-run.
 contract Deploy is SponsorDeploy {
   function run() external {
     _config = Constants.getConfig(block.chainid);
@@ -14,7 +15,7 @@ contract Deploy is SponsorDeploy {
     _deployFullSystem(_config.entryPoint, _deploySaltFactory(), Constants.create2Deployer());
     vm.stopBroadcast();
 
-    _assertLiveAllowed7702(_paymaster.ALLOWED_7702_IMPLEMENTATION());
+    _assertLiveAllowed7702Impl(_paymaster.allowed7702Impl());
     _logDeployment();
     _writeFullSystemJson(
       _config.entryPoint,

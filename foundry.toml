@@ -17,7 +17,10 @@ via_ir = true
 # hash file contents (not path strings) so nested factory CBOR is Etherscan-replayable.
 bytecode_hash = 'ipfs'
 use_literal_content = true
-fs_permissions = [{ access = 'read-write', path = './deployments' }]
+fs_permissions = [
+  { access = 'read-write', path = './deployments' },
+  { access = 'read-write', path = './simulations' },
+]
 
 [profile.verify]
 ffi = true
@@ -30,6 +33,11 @@ out = 'out-via-ir'
 [profile.test]
 via_ir = true
 out = 'out-via-ir'
+
+# Coverage without via-ir avoids Foundry LCOV branch inconsistencies (e.g. SquadSponsorBase).
+# Default/test profiles keep via_ir so gas snapshots match deployment bytecode.
+[profile.coverage]
+via_ir = false
 
 [profile.docs]
 src = 'src/interfaces/'

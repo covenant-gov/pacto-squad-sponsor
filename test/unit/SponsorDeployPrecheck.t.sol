@@ -130,7 +130,7 @@ contract UnitSponsorDeployPrecheck is Test {
   function test_Unit_SponsorDeploy_DeployFullSystemSucceedsWhenAgreementHolds() external {
     _harness.deployFullSystem(_ENTRY_POINT, bytes32(uint256(1)));
     PactoSponsorPaymaster _pm = PactoSponsorPaymaster(payable(_harness.paymaster()));
-    assertEq(_pm.ALLOWED_7702_IMPLEMENTATION(), address(_account));
+    assertEq(_pm.allowed7702Impl(), address(_account));
     assertEq(_pm.ALLOWLIST_ADMIN(), address(_harness));
   }
 }

@@ -29,7 +29,7 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
    * @param previous Previous allowed implementation (`address(0)` rejects all stubs).
    * @param implementation New allowed implementation.
    */
-  event Allowed7702ImplementationSet(address indexed previous, address indexed implementation);
+  event Allowed7702ImplSet(address indexed previous, address indexed implementation);
 
   /*///////////////////////////////////////////////////////////////
                             LOGIC
@@ -39,7 +39,7 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
    * @dev Only `ALLOWLIST_ADMIN`. `address(0)` rejects every EIP-7702 delegated sender.
    * @param allowed7702 Canonical `PactoSimple7702Account` (or zero).
    */
-  function setAllowed7702Implementation(address allowed7702) external;
+  function setAllowed7702Impl(address allowed7702) external;
 
   /*///////////////////////////////////////////////////////////////
                             VIEWS
@@ -51,7 +51,7 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
   function PAYMASTER_DATA_VERSION() external view returns (uint8 version);
 
   /**
-   * @notice Account authorized to call `setAllowed7702Implementation`.
+   * @notice Account authorized to call `setAllowed7702Impl`.
    * @return admin Immutable allowlist admin set at construction.
    */
   function ALLOWLIST_ADMIN() external view returns (address admin);
@@ -63,5 +63,5 @@ interface IPactoSponsorPaymaster is ISquadSponsorCommon {
    *      does not read that registry. `ALLOWLIST_ADMIN` may rotate or revoke without redeploying pools.
    * @return implementation Canonical `PactoSimple7702Account` (or zero).
    */
-  function ALLOWED_7702_IMPLEMENTATION() external view returns (address implementation);
+  function allowed7702Impl() external view returns (address implementation);
 }

@@ -8,11 +8,13 @@ import {VmSafe} from 'forge-std/Vm.sol';
 /**
  * @title DeploymentArtifacts
  * @author Pacto
- * @notice Writes JSON under `deployments/<chainId>/` when running `forge script` (not `forge test`).
+ * @notice Writes JSON under `deployments/<chainId>/` on broadcast/resume, or `simulations/<chainId>/` on dry-run.
+ * @dev `forge test` does not write. Reads always use `deployments/<chainId>/`.
  */
 abstract contract DeploymentArtifacts is Script {
   using stdJson for string;
 
+  /// @notice Returns whether deployment JSON should be written (dry-run, broadcast, or resume — not forge test).
   function _shouldWriteDeploymentJson() internal view returns (bool) {
     return vm.isContext(VmSafe.ForgeContext.ScriptDryRun) || vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)
       || vm.isContext(VmSafe.ForgeContext.ScriptResume);
@@ -22,6 +24,13 @@ abstract contract DeploymentArtifacts is Script {
     return _shouldWriteDeploymentJson();
   }
 
+  /// @notice Artifact root for writes: simulations on dry-run, deployments on broadcast/resume.
+  /// @return root The directory name under the package root.
+  function _artifactWriteRoot() internal view returns (string memory root) {
+    root = vm.isContext(VmSafe.ForgeContext.ScriptDryRun) ? 'simulations' : 'deployments';
+  }
+
+  /// @notice Resolves the canonical deployment JSON path for a filename (reads always use deployments/).
   function _deploymentJsonPath(string memory filename) internal view returns (string memory) {
     return string.concat('deployments/', vm.toString(block.chainid), '/', filename);
   }
@@ -38,7 +47,7 @@ abstract contract DeploymentArtifacts is Script {
 
   /// @notice Prefer mirrored pacto-aa `eip7702-account.json`, then `PACTO_7702_ACCOUNT` env.
   /// @dev Factory constructor seeds the paymaster allowlist. Live deploy asserts equality with the registry slot.
-  function _resolveAllowed7702Implementation() internal view returns (address allowed7702) {
+  function _resolveAllowed7702Impl() internal view returns (address allowed7702) {
     allowed7702 = _readPactoSimple7702FromArtifact();
     if (allowed7702 != address(0)) return allowed7702;
     allowed7702 = vm.envOr('PACTO_7702_ACCOUNT', address(0));
@@ -83,9 +92,12 @@ abstract contract DeploymentArtifacts is Script {
     registry = vm.envOr('PACTO_NAVE_PIRATA_REGISTRY', address(0));
   }
 
+  /// @notice Writes deployment JSON to disk (simulations/ on dry-run, deployments/ on broadcast/resume).
   function _writeDeploymentJson(string memory json, string memory filename) internal {
-    vm.createDir(string.concat('deployments/', vm.toString(block.chainid)), true);
-    vm.writeJson(json, _deploymentJsonPath(filename));
+    string memory root = _artifactWriteRoot();
+    string memory dir = string.concat(root, '/', vm.toString(block.chainid));
+    vm.createDir(dir, true);
+    vm.writeJson(json, string.concat(dir, '/', filename));
   }
 
   function _writeFullSystemJson(

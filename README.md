@@ -100,6 +100,11 @@ Deploy / wire the username-system `PactoProtocolRegistry` first (7702 allowlist 
 
 ```bash
 # ensure deployments/<chainId>/protocol-registry.json (or PACTO_PROTOCOL_REGISTRY) is set
+
+# Dry-run (writes simulations/<chainId>/*.json with simulated addresses; does not send txs)
+pnpm simulate-deploy:sepolia
+
+# Broadcast + write deployments/<chainId>/full-system.json, then verify via VerifyDeploy
 pnpm deploy:sepolia
 ```
 
@@ -123,10 +128,11 @@ pnpm fund:paymaster:sepolia
 If a live paymaster was deployed with a zero 7702 allowlist, cut over (redeploy factory + paymaster, fund deposit/stake; does not redeploy 7702 — use pacto-aa for that). Do **not** use cutover to top up the live Sepolia paymaster.
 
 ```bash
+pnpm simulate-cutover:paymaster:sepolia
 pnpm cutover:paymaster:sepolia
 ```
 
-Artifacts: mirrored `deployments/<chainId>/eip7702-account.json` (from pacto-aa) and `deployments/<chainId>/full-system.json`. Broadcast traces are under `./broadcast`.
+Artifacts: mirrored `deployments/<chainId>/eip7702-account.json` (from pacto-aa) and `deployments/<chainId>/full-system.json` (broadcast / resume only). Dry-run writes `simulations/<chainId>/`. Broadcast traces are under `./broadcast`.
 
 See the [Foundry Book](https://book.getfoundry.sh/reference/forge/forge-create.html) for extra `forge` options.
 

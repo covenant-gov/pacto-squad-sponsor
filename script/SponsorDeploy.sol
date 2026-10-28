@@ -111,7 +111,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
 
   /// @dev Prefer artifact/env; tests override to keep the allowlist unset.
   function _resolveAllowed7702ForDeploy() internal view virtual returns (address allowed7702) {
-    allowed7702 = _resolveAllowed7702Implementation();
+    allowed7702 = _resolveAllowed7702Impl();
   }
 
   /// @dev Artifact / `PACTO_PROTOCOL_REGISTRY`. Recorded in `full-system.json`; not a factory constructor arg.
@@ -124,7 +124,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
   }
 
   /// @dev Optional assertion helper: the paymaster allowlist must be non-zero on public chains.
-  function _assertLiveAllowed7702(address allowed7702) internal view {
+  function _assertLiveAllowed7702Impl(address allowed7702) internal view {
     if (!_requireNonZeroOnLiveScript()) return;
     if (allowed7702 == address(0)) revert SponsorDeploy_Zero7702Allowlist();
   }
@@ -166,7 +166,7 @@ abstract contract SponsorDeploy is Script, DeploymentArtifacts {
     console.log('PactoSponsorPaymaster:', address(_paymaster));
     console.log('ProtocolRegistry:', _protocolRegistry);
     console.log('ALLOWLIST_ADMIN:', _paymaster.ALLOWLIST_ADMIN());
-    console.log('ALLOWED_7702_IMPLEMENTATION:', _paymaster.ALLOWED_7702_IMPLEMENTATION());
+    console.log('allowed7702Impl:', _paymaster.allowed7702Impl());
     console.log('Sponsor implementation:', _factory.sponsorImplementation());
     console.log('Ext implementation:', _factory.extImplementation());
     console.log('Pool implementation:', _factory.poolImplementation());
