@@ -31,11 +31,11 @@ contract PactoSponsorPaymaster is IPactoSponsorPaymaster, BasePaymaster {
   /// @inheritdoc IPactoSponsorPaymaster
   address public immutable ALLOWLIST_ADMIN;
 
-  /// @inheritdoc IPactoSponsorPaymaster
-  address public allowed7702Impl;
-
   /// @notice Factory used to anti-spoof squad clone addresses.
   ISquadSponsorFactory internal immutable _FACTORY;
+
+  /// @inheritdoc IPactoSponsorPaymaster
+  address public allowed7702Impl;
 
   /*///////////////////////////////////////////////////////////////
                             CONSTRUCTOR
