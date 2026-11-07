@@ -6,9 +6,9 @@ concurrency:
   group: ${{github.workflow}}-${{github.ref}}
   cancel-in-progress: true
 
-env:
-  ARBITRUM_RPC: ${{ secrets.ARBITRUM_RPC }}
-  SEPOLIA_RPC: ${{ secrets.SEPOLIA_RPC }}
+# Least privilege by default. Jobs that need more must restate contents: read.
+permissions:
+  contents: read
 
 jobs:
   unit-tests:
@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: install-tools
         uses: ./.github/workflows/install-tools
@@ -33,16 +35,19 @@ jobs:
     name: Run Integration Tests
     runs-on: ubuntu-latest
     environment: e2e
-    env:
-      MAINNET_RPC: ${{ secrets.MAINNET_RPC || vars.MAINNET_RPC }}
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: install-tools
         uses: ./.github/workflows/install-tools
 
+      # RPC credentials are scoped after dependency install (not workflow/job-wide).
       - name: Require mainnet RPC for fork tests
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC || vars.MAINNET_RPC }}
         run: |
           if [ -z "${MAINNET_RPC}" ]; then
             echo "::error::MAINNET_RPC is not set. Add repository secret MAINNET_RPC or e2e environment variable MAINNET_RPC."
@@ -50,19 +55,21 @@ jobs:
           fi
 
       - name: Run tests
+        env:
+          MAINNET_RPC: ${{ secrets.MAINNET_RPC || vars.MAINNET_RPC }}
         run: pnpm test:integration
 
   lint:
     name: Static Analysis
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: wagoid/commitlint-github-action@v5
+      - uses: wagoid/commitlint-github-action@9763196e10f27aef304c9b8b660d31d97fce0f99 # v5.5.1
       - name: install-tools
         uses: ./.github/workflows/install-tools
 
@@ -70,6 +77,6 @@ jobs:
         run: pnpm lint:check
 
       - name: Install and run Bulloak
-        uses: smol-ninja/bulloak-toolchain@v2
+        uses: smol-ninja/bulloak-toolchain@d4e00e1dc5673d3e6731ac37b8cdbb3f451863be # v2.2.0
         with:
           test-dir: 'test/unit'
