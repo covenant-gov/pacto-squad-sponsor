@@ -1,0 +1,12 @@
+# Local composite under workflows/ (Wonderland-style path) is not a workflow file.
+# Canary/release keep intentional `if: false` publishing gates.
+paths:
+  .github/workflows/install-tools/action.yml:
+    ignore:
+      - '.+'
+  .github/workflows/canary.yml:
+    ignore:
+      - 'constant expression "false" in condition'
+  .github/workflows/release.yml:
+    ignore:
+      - 'constant expression "false" in condition'
